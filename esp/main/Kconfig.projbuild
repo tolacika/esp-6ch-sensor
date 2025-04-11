@@ -1,0 +1,35 @@
+menu "Application WiFi settings"
+
+    config DEFAULT_STA_SSID
+        string "Default STA SSID (max 20 chars)"
+        default "my_wifi"
+        help
+            SSID of the WiFi network to connect to
+
+    config DEFAULT_STA_PASSWORD
+        string "Default STA password (max 20 chars)"
+        default "my_password"
+        help
+            Password of the WiFi network to connect to
+
+    config DEFAULT_AP_SSID
+        string "Default AP SSID (max 20 chars)"
+        default "ESP32-AP"
+        help
+            SSID of the access point for configuring the device
+
+    config DEFAULT_AP_PASSWORD
+        string "Default AP password (max 20 chars)"
+        default "12345678"
+        help
+            Password of the access point for configuring the device
+
+    config DEFAULT_AP_CHANNEL
+        int "Default AP channel"
+        default 1
+        range 1 13
+        help
+            WiFi channel of the access point for configuring the device (1-13).
+
+endmenu
+
