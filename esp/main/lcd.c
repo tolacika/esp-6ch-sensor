@@ -69,11 +69,11 @@ static void handle_wifi_state_change()
         {
         case 0:
             esp_ip4_addr_t *ip_addr = &system_state.wifi_current_ip;
-            sprintf(status_line_buffer, "STAIP: " IPSTR, IP2STR(ip_addr));
+            sprintf(status_line_buffer, "IP: " IPSTR, IP2STR(ip_addr));
             ESP_LOGI(TAG, "WiFi connected, IP: " IPSTR, IP2STR(ip_addr));
             break;
         case 201: // WIFI_REASON_NO_AP_FOUND
-            memcpy(status_line_buffer, "Wifi: No AP found", 17);
+            memcpy(status_line_buffer, "Wifi: Invalid SSID", 18);
             break;
         case 202: // WIFI_REASON_AUTH_FAIL
             memcpy(status_line_buffer, "Wifi: Auth failed", 17);
@@ -170,6 +170,7 @@ static void lcd_init_cycle(void)
 void lcd_initialize(void)
 {
     memset(status_line_buffer, ' ', LCD_COLS);
+    memcpy(status_line_buffer, "Wifi: Init...", 13);
 
     lcd_init_cycle(); // Initialize the LCD
 
