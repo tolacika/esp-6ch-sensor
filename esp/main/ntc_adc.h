@@ -6,6 +6,7 @@
 #include "esp_adc/adc_continuous.h"
 #include "freertos/FreeRTOS.h"
 #include "driver/gpio.h" // Include for GPIO functionality
+#include "config.h"
 
 // ADC channel definitions
 #define ADC_USED_CHANNEL_1  ADC_CHANNEL_0  // ADC1 Channel 0

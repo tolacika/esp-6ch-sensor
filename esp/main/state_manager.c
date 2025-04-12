@@ -202,7 +202,7 @@ void events_init(void) {
     // Create the application task
     TaskHandle_t task_handle;
     ESP_LOGI(TAG, "starting application task");
-    xTaskCreate(application_task, "application_task", 3072, NULL, uxTaskPriorityGet(NULL) + 1, &task_handle);
+    xTaskCreatePinnedToCore(application_task, "application_task", TASK_APP_STACK_SIZE, NULL, TASK_APP_PRIORITY, &task_handle, TASK_APP_CORE);
 
     // Start the application task to run the event handlers
     xTaskNotifyGive(task_handle);

@@ -107,14 +107,7 @@ static void lcd_event_handler(void *handler_arg, esp_event_base_t base, int32_t 
             break;
         case EVENT_BUTTON_LONG_PRESS:
             ESP_LOGI(TAG, "Long button press detected");
-            if (lcd_screen_state != LCD_SCREEN_AP_MODE)
-            {
-                lcd_set_screen_state(LCD_SCREEN_AP_MODE); // Set to AP mode screen
-            }
-            else
-            {
-                lcd_set_screen_state(LCD_SCREEN_TEMP_AND_STATUS); // Set to temperature and status screen
-            }
+            lcd_screen_state = LCD_SCREEN_AP_MODE; // Set screen state to AP mode
             break;
         case EVENT_WIFI_STATE_CHANGED:
             handle_wifi_state_change(); // Handle WiFi state change
@@ -353,23 +346,15 @@ void lcd_format_temperature(float temp, char *buffer, size_t buffer_size)
     buffer[4] = (int)(temp * 10) % 10 + '0';
 }
 
-/*void trim_string_into_buffer(size_t max_size, const char *str, int8_t col, int8_t row)
-{
-    // Trim a string to fit into the buffer
-    if (col < 0 || col >= LCD_COLS || row < 0 || row >= LCD_ROWS)
-    {
-        return;
-    }
-    size_t str_len = strlen(str);
-    if (str_len > max_size)
-    {
-        str_len = max_size;
-    }
-    lcd_copy_to_buffer(str, str_len, col, row);
-}*/
+static bool isRendering = false;
 
 void lcd_render_cycle()
 {
+    if (isRendering)
+    {
+        return; // Prevent re-entrance
+    }
+    isRendering = true; // Set rendering flag
     switch (lcd_screen_state)
     {
     case LCD_SCREEN_SPLASH:
@@ -393,7 +378,8 @@ void lcd_render_cycle()
     default:
         break;
     }
-    lcd_render(); // Render the current screen
+    lcd_render();        // Render the current screen
+    isRendering = false; // Clear rendering flag
 }
 
 void lcd_splash_screen(void)
@@ -414,16 +400,14 @@ void lcd_ap_mode_screen(void)
 {
     char *ap_ssid = system_state.ap_ssid;
     char *ap_pass = system_state.ap_pass;
-    
+
     // Display the AP mode screen on the LCD
     lcd_clear_buffer();
     lcd_set_cursor(0, 0);
     lcd_write_text(" AP Mode - SSID:");
-    //lcd_set_cursor(0, 1);
     lcd_copy_to_buffer(ap_ssid, 20, 0, 1);
     lcd_set_cursor(0, 2);
     lcd_write_text(" Password: ");
-    //lcd_set_cursor(0, 3);
     lcd_copy_to_buffer(ap_pass, 20, 0, 3);
 }
 
@@ -433,10 +417,46 @@ void lcd_status_screen(int8_t index)
     //  Display the status screen on the LCD
     lcd_clear_buffer();
     lcd_set_cursor(0, 0);
-    lcd_write_text("WiFi STA: ");
-    lcd_write_character(index + '1');
-    lcd_set_cursor(0, 1);
-    lcd_write_text("WiFi: ");
+    switch (index)
+    {
+    case 0:
+        lcd_write_text("  Wifi STA: ");
+        lcd_set_cursor(0, 1);
+        lcd_write_text("SSID:");
+        lcd_copy_to_buffer(system_state.sta_ssid, 15, 5, 1);
+        lcd_set_cursor(0, 2);
+        lcd_write_text("Pass:");
+        lcd_copy_to_buffer(system_state.sta_pass, 15, 5, 2);
+        lcd_set_cursor(0, 3);
+        lcd_write_text("IP:");
+        if (system_state.wifi_current_ip.addr == 0)
+        {
+            lcd_copy_to_buffer("No IP", 5, 3, 3);
+        }
+        else
+        {
+            char ip_buffer[18];
+            sprintf(ip_buffer, IPSTR, IP2STR(&system_state.wifi_current_ip));
+            lcd_copy_to_buffer(ip_buffer, 15, 3, 3);
+        }
+        break;
+    case 1:
+        lcd_write_text("  Wifi AP: ");
+        lcd_set_cursor(0, 1);
+        lcd_write_text("SSID:");
+        lcd_copy_to_buffer(system_state.ap_ssid, 15, 5, 1);
+        lcd_set_cursor(0, 2);
+        lcd_write_text("Pass:");
+        lcd_copy_to_buffer(system_state.ap_pass, 15, 5, 2);
+        lcd_set_cursor(0, 3);
+        lcd_write_text("Status: Disabled");
+        break;
+    case 2:
+        
+        break;
+    default:
+        break;
+    }
 
     /*EventBits_t bits = xEventGroupGetBits(get_event_group());
     if (bits & WIFI_CONNECTED_BIT) {

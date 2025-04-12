@@ -74,11 +74,6 @@ static void event_handler(void *arg, esp_event_base_t event_base, int32_t event_
 
 void wifi_sta_init(void)
 {
-
-    // Initialize TCP/IP stack
-    ESP_ERROR_CHECK(esp_netif_init());
-    ESP_ERROR_CHECK(esp_event_loop_create_default());
-
     // Create default WiFi STA
     esp_netif_create_default_wifi_sta();
 
@@ -148,7 +143,7 @@ void wifi_ap_init(void)
         wifi_config.ap.authmode = WIFI_AUTH_OPEN;
     }
 
-    ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_APSTA));
+    ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_AP));
     ESP_ERROR_CHECK(esp_wifi_set_config(ESP_IF_WIFI_AP, &wifi_config));
     ESP_ERROR_CHECK(esp_wifi_start());
 
@@ -199,6 +194,10 @@ static void _wifi_button_long_press_event_handler(void *handler_arg, esp_event_b
 
 void wifi_initialize()
 {
+    // Initialize TCP/IP stack
+    ESP_ERROR_CHECK(esp_netif_init());
+    ESP_ERROR_CHECK(esp_event_loop_create_default());
+
     events_subscribe(EVENT_BUTTON_LONG_PRESS, _wifi_button_long_press_event_handler, NULL);
 }
 

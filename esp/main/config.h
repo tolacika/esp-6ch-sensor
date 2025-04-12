@@ -16,4 +16,25 @@
 #define BUTTON_DEBOUNCE_TIME_US 90000  // 90ms debounce time
 #define BUTTON_LONG_PRESS_TIME_US 3000000  // 3 seconds long press time
 
+// Task configurations
+#define TASK_STATUS_LED_STACK_SIZE 2048
+#define TASK_STATUS_LED_PRIORITY   5
+#define TASK_STATUS_LED_CORE       tskNO_AFFINITY
+
+#define TASK_BUTTON_STACK_SIZE     2048
+#define TASK_BUTTON_PRIORITY       10
+#define TASK_BUTTON_CORE           tskNO_AFFINITY
+
+#define TASK_NTC_TEMP_STACK_SIZE   4096
+#define TASK_NTC_TEMP_PRIORITY     5
+#define TASK_NTC_TEMP_CORE         1
+
+#define TASK_NTC_REPORT_STACK_SIZE 2048
+#define TASK_NTC_REPORT_PRIORITY   3
+#define TASK_NTC_REPORT_CORE       tskNO_AFFINITY
+
+#define TASK_APP_STACK_SIZE        3072
+#define TASK_APP_PRIORITY          6
+#define TASK_APP_CORE              tskNO_AFFINITY
+
 #endif // CONFIG_H

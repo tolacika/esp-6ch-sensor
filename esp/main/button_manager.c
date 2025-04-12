@@ -88,7 +88,7 @@ void button_init(void) {
     long_press_timer = xTimerCreate("LongPressTimer", pdMS_TO_TICKS(100), pdTRUE, NULL, long_press_timer_callback);
 
     // Start the button task
-    xTaskCreate(button_task, "button_task", 2048, NULL, 10, NULL);
+    xTaskCreatePinnedToCore(button_task, "button_task", TASK_BUTTON_STACK_SIZE, NULL, TASK_BUTTON_PRIORITY, NULL, TASK_BUTTON_CORE);
 
     // Install the ISR service
     gpio_install_isr_service(ESP_INTR_FLAG_LEVEL3);
