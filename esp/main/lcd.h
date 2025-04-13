@@ -33,6 +33,7 @@
 #define LCD_DB5 (1 << 5) // Data bit 5
 #define LCD_DB4 (1 << 4) // Data bit 4
 
+#define LCD_FPS 2 // Frames per second
 #define LCD_COLS 20
 #define LCD_ROWS 4
 #define LCD_ROW_OFFSET {0x00, 0x40, 0x14, 0x54} // Row offsets for 20x4 LCD

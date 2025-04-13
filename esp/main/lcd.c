@@ -21,6 +21,7 @@ static uint8_t lcd_backlight_status = LCD_BACKLIGHT;
 
 static char lcd_buffer[LCD_BUFFER_SIZE]; // 80-byte buffer for the LCD
 static char status_line_buffer[LCD_COLS];
+static bool next_render_requested = false;
 
 static uint8_t cursor_col = 0;
 static uint8_t cursor_row = 0;
@@ -192,7 +193,7 @@ void lcd_set_screen_state(lcd_screen_state_t state)
         lcd_screen_state = LCD_SCREEN_TEMP_AND_STATUS; // Default to temperature and average screen
     }
     lcd_clear_buffer(); // Clear the buffer for the new screen
-    lcd_render_cycle(); // Render the new screen
+    next_render_requested = true;
 }
 
 void lcd_next_screen(void)
@@ -207,7 +208,7 @@ void lcd_next_screen(void)
         lcd_screen_state = LCD_SCREEN_TEMP_AND_STATUS; // Loop back to the first screen
     }
     lcd_clear_buffer(); // Clear the buffer for the new screen
-    lcd_render_cycle(); // Render the new screen
+    next_render_requested = true;
 }
 
 lcd_screen_state_t lcd_get_screen_state(void)
@@ -543,10 +544,20 @@ void lcd_temperaure_screen(bool bottom_statistics)
 
 void lcd_update_task(void *pvParameter)
 {
-    // Periodically update the LCD
-    while (1)
+    const TickType_t frame_delay = pdMS_TO_TICKS(1000 / LCD_FPS);
+    const TickType_t last_render_tick = xTaskGetTickCount();
+
+    for (;;)
     {
-        lcd_render_cycle();
-        vTaskDelay(pdMS_TO_TICKS(500)); // Update every second
+        if (next_render_requested)
+        {
+            next_render_requested = false;
+            lcd_render_cycle();
+        }
+        else if (xTaskGetTickCount() - last_render_tick >= frame_delay)
+        {
+            lcd_render_cycle();
+        }
+        vTaskDelayUntil(&last_render_tick, frame_delay);
     }
 }

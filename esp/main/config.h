@@ -18,7 +18,7 @@
 
 // Task configurations
 #define EVENT_LOOP_QUEUE_SIZE      10
-#define EVENT_LOOP_TASK_STACK_SIZE 2048
+#define EVENT_LOOP_TASK_STACK_SIZE 3072
 #define EVENT_LOOP_TASK_PRIORITY   20
 #define EVENT_LOOP_TASK_CORE       0
 
@@ -38,7 +38,7 @@
 #define TASK_NTC_REPORT_PRIORITY   3
 #define TASK_NTC_REPORT_CORE       1
 
-#define TASK_APP_STACK_SIZE        2048
+#define TASK_APP_STACK_SIZE        3072
 #define TASK_APP_PRIORITY          18
 #define TASK_APP_CORE              0
 
