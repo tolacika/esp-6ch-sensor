@@ -111,6 +111,7 @@ static void lcd_event_handler(void *handler_arg, esp_event_base_t base, int32_t 
         case EVENT_BUTTON_LONG_PRESS:
             ESP_LOGI(TAG, "Long button press detected");
             lcd_screen_state = LCD_SCREEN_AP_MODE; // Set screen state to AP mode
+            next_render_requested = true;
             break;
         case EVENT_WIFI_STATE_CHANGED:
             handle_wifi_state_change(); // Handle WiFi state change
@@ -545,19 +546,21 @@ void lcd_temperaure_screen(bool bottom_statistics)
 void lcd_update_task(void *pvParameter)
 {
     const TickType_t frame_delay = pdMS_TO_TICKS(1000 / LCD_FPS);
-    const TickType_t last_render_tick = xTaskGetTickCount();
+    TickType_t last_render_tick = xTaskGetTickCount();
 
     for (;;)
     {
         if (next_render_requested)
         {
             next_render_requested = false;
+            last_render_tick = xTaskGetTickCount(); // Reset the render tick
             lcd_render_cycle();
         }
         else if (xTaskGetTickCount() - last_render_tick >= frame_delay)
         {
+            last_render_tick = xTaskGetTickCount();
             lcd_render_cycle();
         }
-        vTaskDelayUntil(&last_render_tick, frame_delay);
+        vTaskDelay(pdMS_TO_TICKS(10)); // Yield to other tasks
     }
 }

@@ -48,16 +48,19 @@ void system_state_get(const void *field_ptr, void *output, size_t size)
 
 void store_running_config()
 {
+    ESP_LOGI(TAG, "Storing running config to NVS");
     char *buffer;
     size_t buffer_size = SSID_MAX_LEN + 1; // +1 for null terminator
     buffer = malloc(buffer_size);
 
     SYSTEM_STATE_GET(ap_ssid, buffer);
+    buffer[SSID_MAX_LEN] = '\0'; // Ensure null termination
     ESP_LOGI(TAG, "Storing AP SSID: %s", buffer);
     store_string(AP_SSID_KEY, buffer);
     memset(buffer, 0, buffer_size); // Clear buffer for next use
 
     SYSTEM_STATE_GET(sta_ssid, buffer);
+    buffer[SSID_MAX_LEN] = '\0'; // Ensure null termination
     ESP_LOGI(TAG, "Storing STA SSID: %s", buffer);
     store_string(STA_SSID_KEY, buffer);
     memset(buffer, 0, buffer_size); // Clear buffer for next use
@@ -66,11 +69,13 @@ void store_running_config()
     buffer = realloc(buffer, buffer_size);
 
     SYSTEM_STATE_GET(ap_pass, buffer);
+    buffer[PASS_MAX_LEN] = '\0'; // Ensure null termination
     ESP_LOGI(TAG, "Storing AP Password: %s", buffer);
     store_string(AP_PASS_KEY, buffer);
     memset(buffer, 0, buffer_size); // Clear buffer for next use
 
     SYSTEM_STATE_GET(sta_pass, buffer);
+    buffer[PASS_MAX_LEN] = '\0'; // Ensure null termination
     ESP_LOGI(TAG, "Storing STA Password: %s", buffer);
     store_string(STA_PASS_KEY, buffer);
     
@@ -97,6 +102,7 @@ void read_running_config()
     else if (err == ESP_ERR_NVS_NOT_FOUND)
     {
         ESP_LOGI(TAG, "AP SSID not found, using default: %s", CONFIG_DEFAULT_AP_SSID);
+        //store_string(AP_SSID_KEY, CONFIG_DEFAULT_AP_SSID);
         SYSTEM_STATE_SET(ap_ssid, CONFIG_DEFAULT_AP_SSID);
     }
     memset(buffer, 0, buffer_size); // Clear buffer for next use
@@ -110,6 +116,7 @@ void read_running_config()
     else if (err == ESP_ERR_NVS_NOT_FOUND)
     {
         ESP_LOGI(TAG, "STA SSID not found, using default: %s", CONFIG_DEFAULT_STA_SSID);
+        //store_string(STA_SSID_KEY, CONFIG_DEFAULT_STA_SSID);
         SYSTEM_STATE_SET(sta_ssid, CONFIG_DEFAULT_STA_SSID);
     }
     memset(buffer, 0, buffer_size); // Clear buffer for next use
@@ -131,11 +138,13 @@ void read_running_config()
     else if (err == ESP_ERR_NVS_NOT_FOUND)
     {
         ESP_LOGI(TAG, "AP Password not found, using default: %s", CONFIG_DEFAULT_AP_PASSWORD);
+        //store_string(AP_PASS_KEY, CONFIG_DEFAULT_AP_PASSWORD);
         SYSTEM_STATE_SET(ap_pass, CONFIG_DEFAULT_AP_PASSWORD);
     }
     memset(buffer, 0, buffer_size); // Clear buffer for next use
 
     err = read_string(STA_PASS_KEY, buffer, &buffer_size);
+    ESP_LOGI(TAG, "STA Password read: %d", err);
     if (err == ESP_OK)
     {
         ESP_LOGI(TAG, "STA Password found: %s", buffer);
@@ -144,6 +153,7 @@ void read_running_config()
     else if (err == ESP_ERR_NVS_NOT_FOUND)
     {
         ESP_LOGI(TAG, "STA Password not found, using default: %s", CONFIG_DEFAULT_STA_PASSWORD);
+        //store_string(STA_PASS_KEY, CONFIG_DEFAULT_STA_PASSWORD);
         SYSTEM_STATE_SET(sta_pass, CONFIG_DEFAULT_STA_PASSWORD);
     }
     free(buffer); // Free buffer after use
@@ -158,7 +168,7 @@ void read_running_config()
     else if (err == ESP_ERR_NVS_NOT_FOUND)
     {
         ESP_LOGI(TAG, "AP Channel not found, using default: %d", CONFIG_DEFAULT_AP_CHANNEL);
-        store_int(AP_CHANNEL_KEY, CONFIG_DEFAULT_AP_CHANNEL);
+        //store_int(AP_CHANNEL_KEY, CONFIG_DEFAULT_AP_CHANNEL);
         buffer_int = CONFIG_DEFAULT_AP_CHANNEL;
         SYSTEM_STATE_SET(ap_channel, buffer_int);
 
