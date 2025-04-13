@@ -16,9 +16,17 @@
 
 void app_main(void)
 {
+    vTaskDelay(pdMS_TO_TICKS(5000));
     ESP_LOGI("main", "Prio: %d, Core: %d", uxTaskPriorityGet(NULL), xPortGetCoreID());
 
     system_initialize();
+
+    vTaskDelay(pdMS_TO_TICKS(100));
+
+    //test_system_state();
+    log_system_state();
+
+    vTaskDelay(pdMS_TO_TICKS(100));
 
     events_init();
 

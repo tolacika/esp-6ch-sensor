@@ -14,16 +14,16 @@ esp_err_t store_string(const char *key, const char *value)
     }
     else
     {
-      return err;
+      ESP_LOGE("NVS", "Error storing string: %s", esp_err_to_name(err));
     }
     nvs_close(nvs_handle);
   }
   else
   {
-    return err;
+    ESP_LOGE("NVS", "Error opening NVS: %s", esp_err_to_name(err));
   }
 
-  return ESP_OK;
+  return err;
 }
 
 esp_err_t read_string(const char *key, char *value, size_t *max_len)

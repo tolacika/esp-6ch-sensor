@@ -40,6 +40,7 @@ typedef struct
     int32_t ap_channel;
     char sta_ssid[SSID_MAX_LEN];
     char sta_pass[PASS_MAX_LEN];
+    int8_t sensor_mask;
 } system_state_t;
 
 // Declare an event base
@@ -54,6 +55,12 @@ enum {
 };
 
 extern system_state_t system_state;
+
+void test_system_state(void);
+
+void log_system_state(void);
+
+void dump_string(const char *buffer, size_t length);
 
 void system_initialize(void);
 

@@ -9,6 +9,7 @@
 #define AP_CHANNEL_KEY "ac"
 #define STA_SSID_KEY "ss"
 #define STA_PASS_KEY "sp"
+#define SENSOR_MASK_KEY "sm"
 
 
 // Button config
