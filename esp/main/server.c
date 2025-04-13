@@ -63,6 +63,7 @@ static esp_err_t send_index_html(httpd_req_t *req)
 
 static esp_err_t http_handler(httpd_req_t *req)
 {
+    ESP_LOGI(TAG, "Prio handler: %d, Core: %d", uxTaskPriorityGet(NULL), xPortGetCoreID());
     ESP_LOGI(TAG, "HTTP request received");
 
     if (system_state.wifi_state == WIFI_STATE_AP)
@@ -84,6 +85,7 @@ static esp_err_t http_handler(httpd_req_t *req)
 
 void start_http_server(void)
 {
+    ESP_LOGI(TAG, "Prio: %d, Core: %d", uxTaskPriorityGet(NULL), xPortGetCoreID());
     httpd_config_t config = HTTPD_DEFAULT_CONFIG();
 
     /* Use the URI wildcard matching function in order to

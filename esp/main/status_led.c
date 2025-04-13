@@ -1,4 +1,5 @@
 #include "status_led.h"
+#include "esp_log.h"
 
 static const int16_t state_bit_masks[LED_MAX_STATES] = {
     [LED_OK] = 0xFFFF,
@@ -49,6 +50,8 @@ void status_led_task(void *pvParameter)
 
 void status_led_event_handler(void *handler_arg, esp_event_base_t base, int32_t id, void *event_data)
 {
+    ESP_LOGI("status_led", "Prio: %d, Core: %d", uxTaskPriorityGet(NULL), xPortGetCoreID());
+
     switch (id)
     {
     case EVENT_WIFI_STATE_CHANGED:

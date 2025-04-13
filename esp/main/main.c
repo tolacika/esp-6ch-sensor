@@ -16,6 +16,8 @@
 
 void app_main(void)
 {
+    ESP_LOGI("main", "Prio: %d, Core: %d", uxTaskPriorityGet(NULL), xPortGetCoreID());
+
     system_initialize();
 
     events_init();

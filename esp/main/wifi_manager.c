@@ -153,6 +153,7 @@ void wifi_ap_init(void)
 static void _wifi_button_long_press_event_handler(void *handler_arg, esp_event_base_t base, int32_t id, void *event_data)
 {
     ESP_LOGI(TAG, "Long press detected, switching to AP mode...");
+    ESP_LOGI(TAG, "Prio: %d, Core: %d", uxTaskPriorityGet(NULL), xPortGetCoreID());
 
     if (system_state.wifi_state == WIFI_STATE_TRANSITION || system_state.wifi_state == WIFI_STATE_NONE)
     {

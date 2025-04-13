@@ -94,6 +94,8 @@ static void handle_wifi_state_change()
 
 static void lcd_event_handler(void *handler_arg, esp_event_base_t base, int32_t id, void *event_data)
 {
+    ESP_LOGI(TAG, "Prio: %d, Core: %d", uxTaskPriorityGet(NULL), xPortGetCoreID());
+
     if (base == CUSTOM_EVENTS)
     {
         switch (id)

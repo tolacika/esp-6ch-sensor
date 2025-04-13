@@ -175,6 +175,7 @@ void read_running_config()
 
 static void application_task(void* args)
 {
+    ESP_LOGI(TAG, "task Prio: %d, Core: %d", uxTaskPriorityGet(NULL), xPortGetCoreID());
     // Wait to be started by the main task
     ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
 
@@ -186,12 +187,14 @@ static void application_task(void* args)
 
 // Initialize the event system
 void events_init(void) {
+    ESP_LOGI(TAG, "init Prio: %d, Core: %d", uxTaskPriorityGet(NULL), xPortGetCoreID());
+
     esp_event_loop_args_t loop_args = {
-        .queue_size = 10, // Adjust the queue size as needed
-        .task_name = "custom_evt_loop", // Name of the event loop task
-        .task_stack_size = 3072, // Stack size for the event loop task
-        .task_priority = uxTaskPriorityGet(NULL), // Priority for the event loop task
-        .task_core_id = tskNO_AFFINITY // Core to run the event loop task
+        .queue_size = EVENT_LOOP_QUEUE_SIZE,
+        .task_name = "custom_evt_loop",
+        .task_stack_size = EVENT_LOOP_TASK_STACK_SIZE,
+        .task_priority = EVENT_LOOP_TASK_PRIORITY,
+        .task_core_id = EVENT_LOOP_TASK_CORE,
     };
 
     esp_err_t err = esp_event_loop_create(&loop_args, &custom_event_loop);
