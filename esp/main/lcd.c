@@ -406,9 +406,9 @@ void lcd_ap_mode_screen(void)
     lcd_set_cursor(0, 0);
     lcd_write_text(" AP Mode - SSID:");
     lcd_copy_to_buffer(ap_ssid, 20, 0, 1);
-    lcd_set_cursor(0, 2);
-    lcd_write_text(" Password: ");
-    lcd_copy_to_buffer(ap_pass, 20, 0, 3);
+    lcd_copy_to_buffer(ap_pass, 20, 0, 2);
+    lcd_set_cursor(0, 3);
+    lcd_write_text("IP: 192.168.4.1");
 }
 
 void lcd_status_screen(int8_t index)
@@ -452,7 +452,7 @@ void lcd_status_screen(int8_t index)
         lcd_write_text("Status: Disabled");
         break;
     case 2:
-        
+
         break;
     default:
         break;

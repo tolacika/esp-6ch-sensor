@@ -12,6 +12,7 @@
 #include "button_manager.h"
 #include "ntc_adc.h"
 #include "lcd.h"
+#include "server.h"
 
 void app_main(void)
 {
@@ -45,4 +46,6 @@ void app_main(void)
     wifi_connect_sta();
 
     vTaskDelay(pdMS_TO_TICKS(100));
+
+    start_http_server();
 }
