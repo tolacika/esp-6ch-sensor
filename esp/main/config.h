@@ -13,8 +13,8 @@
 
 // Button config
 #define BUTTON_GPIO GPIO_NUM_0  // IO0 button
-#define BUTTON_DEBOUNCE_TIME_US 90000  // 90ms debounce time
-#define BUTTON_LONG_PRESS_TIME_US 3000000  // 3 seconds long press time
+#define BUTTON_DEBOUNCE_TICK pdMS_TO_TICKS(90)
+#define BUTTON_LONG_PRESS_TICK pdMS_TO_TICKS(3000)
 
 // Task configurations
 #define TASK_STATUS_LED_STACK_SIZE 2048
