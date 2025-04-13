@@ -52,6 +52,7 @@ enum {
     //EVENT_WIFI_DISCONNECTED,            // Event for WiFi disconnection
     EVENT_BUTTON_LONG_PRESS,            // Event for button long press
     EVENT_BUTTON_SHORT_PRESS,           // Event for button short press
+    EVENT_RESTART_REQUESTED,            // Event for restart requested
 };
 
 extern system_state_t system_state;

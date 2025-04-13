@@ -116,6 +116,11 @@ static void lcd_event_handler(void *handler_arg, esp_event_base_t base, int32_t 
         case EVENT_WIFI_STATE_CHANGED:
             handle_wifi_state_change(); // Handle WiFi state change
             break;
+        case EVENT_RESTART_REQUESTED:
+            ESP_LOGI(TAG, "Restart requested event received");
+            lcd_screen_state = LCD_SCREEN_RESTARTING; // Set screen state to restarting
+            next_render_requested = true;
+            break;
         default:
             break;
         }
@@ -177,6 +182,7 @@ void lcd_initialize(void)
     events_subscribe(EVENT_BUTTON_SHORT_PRESS, lcd_event_handler, NULL); // Subscribe to button short press event
     events_subscribe(EVENT_BUTTON_LONG_PRESS, lcd_event_handler, NULL);  // Subscribe to button long press event
     events_subscribe(EVENT_WIFI_STATE_CHANGED, lcd_event_handler, NULL); // Subscribe to WiFi connected event
+    events_subscribe(EVENT_RESTART_REQUESTED, lcd_event_handler, NULL); // Subscribe to restart requested event
 
     // Create LCD update task
     xTaskCreatePinnedToCore(lcd_update_task, "lcd_update_task", 4096, NULL, 5, NULL, 0);
@@ -367,6 +373,9 @@ void lcd_render_cycle()
     case LCD_SCREEN_AP_MODE:
         lcd_ap_mode_screen();
         break;
+    case LCD_SCREEN_RESTARTING:
+        lcd_restarting_screen();
+        break;
     case LCD_SCREEN_TEMP_AND_AVG:
         lcd_temperaure_screen(true);
         break;
@@ -413,6 +422,16 @@ void lcd_ap_mode_screen(void)
     lcd_copy_to_buffer(ap_pass, 20, 0, 2);
     lcd_set_cursor(0, 3);
     lcd_write_text("IP: 192.168.4.1");
+}
+
+void lcd_restarting_screen(void)
+{
+    // Display the restarting screen on the LCD
+    lcd_clear_buffer();
+    lcd_set_cursor(0, 0);
+    lcd_write_text(" Restarting... ");
+    lcd_set_cursor(0, 1);
+    lcd_write_text(" Please wait... ");
 }
 
 void lcd_status_screen(int8_t index)

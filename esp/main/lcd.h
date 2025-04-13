@@ -42,6 +42,7 @@
 typedef enum {
     LCD_SCREEN_SPLASH = 0,
     LCD_SCREEN_AP_MODE,
+    LCD_SCREEN_RESTARTING,
     LCD_SCREEN_TEMP_AND_STATUS,
     LCD_SCREEN_TEMP_AND_AVG,
     LCD_SCREEN_STATUS_1,
@@ -103,6 +104,9 @@ void lcd_splash_screen(void);
 
 // Display the access point mode screen on the LCD.
 void lcd_ap_mode_screen(void);
+
+// Display the restarting screen on the LCD.
+void lcd_restarting_screen(void);
 
 // Get the current screen state.
 lcd_screen_state_t lcd_get_screen_state(void);

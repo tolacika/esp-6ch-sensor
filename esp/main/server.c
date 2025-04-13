@@ -130,31 +130,55 @@ static esp_err_t parse_ap_post_request(httpd_req_t *req)
      * we need to parse this string and save the values in the system_state structure
      * buffer lenght should be SSID_MAX_LEN + PASS_MAX_LEN + strlen("ssid=&password=") + N
      */
-    char buffer[SSID_MAX_LEN + PASS_MAX_LEN + 30];
+    char buffer[512];
     int ret = httpd_req_recv(req, buffer, sizeof(buffer) - 1);
     if (ret <= 0)
     {
         ESP_LOGE(TAG, "Socket error: %d", ret);
         return send_error_response(req, "500 Internal Server Error", "Failed to receive data");
     }
-    char ssid[SSID_MAX_LEN + 1] = {0};
-    char pass[PASS_MAX_LEN + 1] = {0};
     buffer[ret] = '\0'; // null-terminate the string
+    char sta_ssid[SSID_MAX_LEN] = {0};
+    char sta_pass[PASS_MAX_LEN] = {0};
+    char ap_ssid[SSID_MAX_LEN] = {0};
+    char ap_pass[PASS_MAX_LEN] = {0};
+    char sensor_mask_str[4] = {0};
+    int sensor_mask = 0;
+
     ESP_LOGI(TAG, "Received data: %s", buffer);
 
-    if (get_post_field_value(buffer, "ssid", ssid, sizeof(ssid)) != ESP_OK)
+    if (get_post_field_value(buffer, "sta_ssid", sta_ssid, sizeof(sta_ssid)) != ESP_OK)
     {
         ESP_LOGE(TAG, "Failed to get SSID from POST data");
         return send_error_response(req, "400 Bad Request", "Invalid SSID format");
     }
-    if (get_post_field_value(buffer, "password", pass, sizeof(pass)) != ESP_OK)
+    if (get_post_field_value(buffer, "sta_pass", sta_pass, sizeof(sta_pass)) != ESP_OK)
     {
         ESP_LOGE(TAG, "Failed to get password from POST data");
         return send_error_response(req, "400 Bad Request", "Invalid password format");
     }
+    if (get_post_field_value(buffer, "ap_ssid", ap_ssid, sizeof(ap_ssid)) != ESP_OK)
+    {
+        ESP_LOGE(TAG, "Failed to get AP SSID from POST data");
+        return send_error_response(req, "400 Bad Request", "Invalid AP SSID format");
+    }
+    if (get_post_field_value(buffer, "ap_pass", ap_pass, sizeof(ap_pass)) != ESP_OK)
+    {
+        ESP_LOGE(TAG, "Failed to get AP password from POST data");
+        return send_error_response(req, "400 Bad Request", "Invalid AP password format");
+    }
+    if (get_post_field_value(buffer, "sensor_mask", sensor_mask_str, sizeof(sensor_mask_str)) != ESP_OK)
+    {
+        ESP_LOGE(TAG, "Failed to get sensor mask from POST data");
+        return send_error_response(req, "400 Bad Request", "Invalid sensor mask format");
+    }
+    sensor_mask = atoi(sensor_mask_str);
 
-    strlcpy(system_state.sta_ssid, ssid, sizeof(system_state.sta_ssid));
-    strlcpy(system_state.sta_pass, pass, sizeof(system_state.sta_pass));
+    strlcpy(system_state.sta_ssid, sta_ssid, sizeof(system_state.sta_ssid));
+    strlcpy(system_state.sta_pass, sta_pass, sizeof(system_state.sta_pass));
+    strlcpy(system_state.ap_ssid, ap_ssid, sizeof(system_state.ap_ssid));
+    strlcpy(system_state.ap_pass, ap_pass, sizeof(system_state.ap_pass));
+    system_state.sensor_mask = sensor_mask;
 
     ESP_LOGI(TAG, "SSID: %s, Password: %s", system_state.sta_ssid, system_state.sta_pass);
 
@@ -162,8 +186,16 @@ static esp_err_t parse_ap_post_request(httpd_req_t *req)
 
     store_running_config();
     ESP_LOGI(TAG, "Running config stored");
+    esp_err_t err = send_ok_response(req, "STA credentials saved successfully. Restarting ESP32...");
 
-    return send_ok_response(req, "STA credentials saved successfully");
+    events_post(EVENT_RESTART_REQUESTED, NULL, 0);
+    ESP_LOGI(TAG, "Restart requested");
+
+    vTaskDelay(pdMS_TO_TICKS(2000)); // wait for the event to be processed
+    esp_restart(); // restart the ESP32
+    ESP_LOGI(TAG, "ESP32 restarted");
+
+    return err;
 }
 
 static esp_err_t config_http_handler(httpd_req_t *req)
