@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <link rel="icon" type="image/x-icon" href="/favicon.ico" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ESP32 Settings Page</title>
+</head>
+
+<body class="bg-slate-800 text-slate-100 font-sans flex items-center justify-center h-screen">
+  <div class="container max-w-96 bg-sky-800 p-4 rounded-lg shadow-lg">
+    <form method="POST" action="/settings.html" id="settings_form">
+      <h1 class="text-2xl font-bold mb-4 text-center">
+        ESP32 Settings Page
+      </h1>
+
+      <label for="sta_ssid">
+        STA mode SSID
+        <span class="text-red-500">*</span>
+      </label>
+      <input type="text" placeholder="SSID" id="sta_ssid" name="sta_ssid" required disabled>
+
+      <label for="sta_password">
+        STA mode Password
+        <span class="text-red-500">*</span>
+        <span class="float-right show_hide_pass" data-for="#sta_password">Show</span>
+      </label>
+      <input type="password" placeholder="Password" id="sta_password" name="sta_pass" required disabled>
+
+      <label for="ap_ssid">
+        AP mode SSID
+        <span class="text-red-500">*</span>
+      </label>
+      <input type="text" placeholder="SSID" id="ap_ssid" name="ap_ssid" required disabled>
+
+      <label for="ap_password">
+        AP mode Password
+        <span class="text-red-500">*</span>
+        <span class="float-right show_hide_pass" data-for="#ap_password">Show</span>
+      </label>
+      <input type="password" placeholder="Password" id="ap_password" name="ap_pass" required disabled>
+
+      <label>
+        Sensor mask:
+      </label>
+      <input type="number" id="sensor_mask" name="sensor_mask" readonly value="0" disabled>
+      <p>
+        Bitmask:
+        <span id="sensor_mask_hex">0x00</span>
+        <span id="sensor_mask_binary">0b00000000</span>
+      </p>
+    </form>
+
+    <table>
+      <thead>
+        <tr>
+          <th></th>
+          <th>Ch5</th>
+          <th>Ch4</th>
+          <th>Ch3</th>
+          <th>Ch2</th>
+          <th>Ch1</th>
+          <th>Ch0</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <th>ON</th>
+          <td>
+            <input type="radio" value="1" name="sensor_ch5" checked>
+          </td>
+          <td>
+            <input type="radio" value="1" name="sensor_ch4" checked>
+          </td>
+          <td>
+            <input type="radio" value="1" name="sensor_ch3" checked>
+          </td>
+          <td>
+            <input type="radio" value="1" name="sensor_ch2" checked>
+          </td>
+          <td>
+            <input type="radio" value="1" name="sensor_ch1" checked>
+          </td>
+          <td>
+            <input type="radio" value="1" name="sensor_ch0" checked>
+          </td>
+        </tr>
+        <tr>
+          <th>OFF</th>
+          <td>
+            <input type="radio" value="0" name="sensor_ch5">
+          </td>
+          <td>
+            <input type="radio" value="0" name="sensor_ch4">
+          </td>
+          <td>
+            <input type="radio" value="0" name="sensor_ch3">
+          </td>
+          <td>
+            <input type="radio" value="0" name="sensor_ch2">
+          </td>
+          <td>
+            <input type="radio" value="0" name="sensor_ch1">
+          </td>
+          <td>
+            <input type="radio" value="0" name="sensor_ch0">
+          </td>
+        </tr>
+      </tbody>
+    </table>
+
+    <button id="submit_button" form="settings_form" disabled>Save</button>
+  </div>
+  <script type="module" src="/src/main.js"></script>
+</body>
+
+</html>
