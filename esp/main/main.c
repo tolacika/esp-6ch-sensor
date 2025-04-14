@@ -13,18 +13,16 @@
 #include "ntc_adc.h"
 #include "lcd.h"
 #include "server.h"
+#include "fatfs_manager.h"
 
 void app_main(void)
 {
-    vTaskDelay(pdMS_TO_TICKS(5000));
+    vTaskDelay(pdMS_TO_TICKS(3000));
     ESP_LOGI("main", "Prio: %d, Core: %d", uxTaskPriorityGet(NULL), xPortGetCoreID());
 
+    fatfs_init();
+    
     system_initialize();
-
-    vTaskDelay(pdMS_TO_TICKS(100));
-
-    //test_system_state();
-    log_system_state();
 
     vTaskDelay(pdMS_TO_TICKS(100));
 
@@ -53,7 +51,16 @@ void app_main(void)
 
     lcd_set_screen_state(LCD_SCREEN_TEMP_AND_STATUS);
 
-    wifi_connect_sta();
+    if (system_state.wifi_startup_mode == WIFI_STARTUP_MODE_AP)
+    {
+        ESP_LOGI("main", "Starting in AP mode");
+        wifi_connect_ap();
+    }
+    else
+    {
+        ESP_LOGI("main", "Starting in STA mode");
+        wifi_connect_sta();
+    }
 
     vTaskDelay(pdMS_TO_TICKS(100));
 

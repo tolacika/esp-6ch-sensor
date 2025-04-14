@@ -14,6 +14,7 @@ system_state_t system_state = {
     .sta_ssid = {0},
     .sta_pass = {0},
     .sensor_mask = 0,
+    .wifi_startup_mode = WIFI_STARTUP_MODE_NONE,
 };
 
 static esp_event_loop_handle_t custom_event_loop = NULL; // Custom event loop handle
@@ -93,7 +94,7 @@ void dump_string(const char *buffer, size_t length)
     }
 }
 
-void test_system_state(void)
+/*void test_system_state(void)
 {
     log_system_state();
 
@@ -122,7 +123,7 @@ void test_system_state(void)
     vTaskDelay(pdMS_TO_TICKS(100));
 
     log_system_state();
-}
+}*/
 
 void system_initialize(void)
 {
@@ -174,6 +175,8 @@ void store_running_config()
 
     store_int(SENSOR_MASK_KEY, system_state.sensor_mask);
     ESP_LOGI(TAG, "Storing Sensor Mask: %d", system_state.sensor_mask);
+
+    store_int(WIFI_STARTUP_MODE_KEY, system_state.wifi_startup_mode);
     ESP_LOGI(TAG, "Stored running config to NVS successfully");
 }
 
@@ -337,14 +340,37 @@ void read_running_config()
         ESP_LOGE(TAG, "Error reading Sensor Mask: %s", esp_err_to_name(err));
     }
 
-    ESP_LOGI(TAG, "AP SSID:");
-    dump_string(system_state.ap_ssid, SSID_MAX_LEN);
-    ESP_LOGI(TAG, "AP Password:");
-    dump_string(system_state.ap_pass, PASS_MAX_LEN);
-    ESP_LOGI(TAG, "STA SSID:");
-    dump_string(system_state.sta_ssid, SSID_MAX_LEN);
-    ESP_LOGI(TAG, "STA Password:");
-    dump_string(system_state.sta_pass, PASS_MAX_LEN);
+    err = read_int(WIFI_STARTUP_MODE_KEY, &buffer_int);
+    if (err == ESP_OK)
+    {
+        ESP_LOGI(TAG, "WiFi Startup Mode found: %ld", buffer_int);
+        system_state.wifi_startup_mode = buffer_int;
+    }
+    else if (err == ESP_ERR_NVS_NOT_FOUND)
+    {
+        ESP_LOGI(TAG, "WiFi Startup Mode not found, using default: %d", WIFI_STARTUP_MODE_AP);
+        system_state.wifi_startup_mode = WIFI_STARTUP_MODE_AP;
+    }
+    else
+    {
+        ESP_LOGE(TAG, "Error reading WiFi Startup Mode: %s", esp_err_to_name(err));
+    }
+    // Validate startup mode
+    if (system_state.wifi_startup_mode != WIFI_STARTUP_MODE_STA &&
+        system_state.wifi_startup_mode != WIFI_STARTUP_MODE_AP)
+    {
+        ESP_LOGE(TAG, "Invalid WiFi Startup Mode: %d. Setting to default: %d", system_state.wifi_startup_mode, WIFI_STARTUP_MODE_AP);
+        system_state.wifi_startup_mode = WIFI_STARTUP_MODE_AP;
+    }
+
+    // ESP_LOGI(TAG, "AP SSID:");
+    // dump_string(system_state.ap_ssid, SSID_MAX_LEN);
+    // ESP_LOGI(TAG, "AP Password:");
+    // dump_string(system_state.ap_pass, PASS_MAX_LEN);
+    // ESP_LOGI(TAG, "STA SSID:");
+    // dump_string(system_state.sta_ssid, SSID_MAX_LEN);
+    // ESP_LOGI(TAG, "STA Password:");
+    // dump_string(system_state.sta_pass, PASS_MAX_LEN);
 }
 
 static void application_task(void *args)

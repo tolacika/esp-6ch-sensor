@@ -215,3 +215,17 @@ void wifi_connect_sta()
     system_state.wifi_state = WIFI_STATE_STA; // Update state to STA
     ESP_LOGI(TAG, "WiFi connected in STA mode successfully.");
 }
+
+void wifi_connect_ap()
+{
+    if (system_state.wifi_state != WIFI_STATE_NONE)
+    {
+        ESP_LOGI(TAG, "WiFi already initialized, skipping initialization.");
+        return;
+    }
+    system_state.wifi_state = WIFI_STATE_TRANSITION;
+    ESP_LOGI(TAG, "Connecting to WiFi in AP mode...");
+    wifi_ap_init();
+    system_state.wifi_state = WIFI_STATE_AP; // Update state to AP
+    ESP_LOGI(TAG, "WiFi connected in AP mode successfully.");
+}

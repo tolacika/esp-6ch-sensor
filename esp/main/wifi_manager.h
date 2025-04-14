@@ -22,7 +22,7 @@
 
 void wifi_initialize(void);
 void wifi_connect_sta(void);
-//void wifi_connect_ap(void);
+void wifi_connect_ap(void);
 //void wifi_connect_init(void);
 //static void wifi_event_handler(void* arg, esp_event_base_t event_base, int32_t event_id, void* event_data);
 

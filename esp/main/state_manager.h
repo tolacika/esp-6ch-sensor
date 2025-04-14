@@ -29,6 +29,12 @@ typedef enum {
     WIFI_STATE_TRANSITION
 } wifi_state_t;
 
+typedef enum {
+    WIFI_STARTUP_MODE_NONE = 0,
+    WIFI_STARTUP_MODE_STA,
+    WIFI_STARTUP_MODE_AP,
+} wifi_mode_enum;
+
 typedef struct
 {
     uint8_t wifi_sta_connection_state; // see wifi_err_reason_t
@@ -41,6 +47,7 @@ typedef struct
     char sta_ssid[SSID_MAX_LEN];
     char sta_pass[PASS_MAX_LEN];
     int8_t sensor_mask;
+    wifi_mode_enum wifi_startup_mode;
 } system_state_t;
 
 // Declare an event base

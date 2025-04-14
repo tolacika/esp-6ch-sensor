@@ -1,5 +1,6 @@
 #include "server.h"
 #include "cJSON.h"
+#include "fatfs_manager.h"
 
 #ifndef MIN
 #define MIN(a, b) ((a) < (b) ? (a) : (b))
@@ -10,11 +11,6 @@
 #endif
 
 static const char *TAG = "http_server";
-
-extern const char index_html_start[] asm("_binary_index_html_start");
-extern const char index_html_end[] asm("_binary_index_html_end");
-extern const char favicon_ico_start[] asm("_binary_favicon_ico_start");
-extern const char favicon_ico_end[] asm("_binary_favicon_ico_end");
 
 static bool match_uri(const char *uri, const char *match)
 {
@@ -79,19 +75,15 @@ static esp_err_t dump_request(httpd_req_t *req)
 static esp_err_t send_favicon(httpd_req_t *req)
 {
     ESP_LOGI(TAG, "Serve favicon.ico");
-    const uint32_t favicon_len = favicon_ico_end - favicon_ico_start;
-    httpd_resp_set_type(req, "image/x-icon");
-    httpd_resp_send(req, favicon_ico_start, favicon_len);
-    return ESP_OK;
+
+    return send_file_from_fatfs(req, "/favicon.ico", "image/x-icon");
 }
 
 static esp_err_t send_index_html(httpd_req_t *req)
 {
     ESP_LOGI(TAG, "Serve esp STA static HTML page");
-    const uint32_t root_len = index_html_end - index_html_start;
-    httpd_resp_set_type(req, "text/html");
-    httpd_resp_send(req, index_html_start, root_len);
-    return ESP_OK;
+
+    return send_file_from_fatfs(req, "/index.html", "text/html");
 }
 
 static esp_err_t get_post_field_value(const char *buffer, const char *field, char *value, size_t value_len)

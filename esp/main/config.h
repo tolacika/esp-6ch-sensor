@@ -10,6 +10,7 @@
 #define STA_SSID_KEY "ss"
 #define STA_PASS_KEY "sp"
 #define SENSOR_MASK_KEY "sm"
+#define WIFI_STARTUP_MODE_KEY "wm"
 
 
 // Button config
