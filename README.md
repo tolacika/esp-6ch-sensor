@@ -1,53 +1,69 @@
-| Supported Targets | ESP32 | ESP32-C2 | ESP32-C3 | ESP32-C5 | ESP32-C6 | ESP32-C61 | ESP32-H2 | ESP32-P4 | ESP32-S2 | ESP32-S3 | Linux |
-| ----------------- | ----- | -------- | -------- | -------- | -------- | --------- | -------- | -------- | -------- | -------- | ----- |
+# ESP32 6-Channel NTC Sensor with LCD and WiFi
 
-# Hello World Example
+This project implements a 6-channel NTC temperature sensor system using an ESP32 microcontroller. It features a 20x4 HD44780 LCD for real-time temperature display and WiFi capabilities for configuration and data feedback. The system supports both Access Point (AP) and Station (STA) WiFi modes, allowing users to configure settings and view temperature data through a web interface.
 
-Starts a FreeRTOS task to print "Hello World".
+## Features
 
-(See the README.md file in the upper level 'examples' directory for more information about examples.)
+- **6-Channel NTC Temperature Sensing**: Reads temperature data from up to 6 NTC thermistors.
+- **HD44780 20x4 LCD Display**: Displays real-time temperature readings and system status.
+- **WiFi AP and STA Modes**:
+  - Both AP and STA modes provide configuration and access to the web interface. The difference lies in the connection mode:
+    - **AP Mode**: The ESP32 creates a local WiFi network for direct connection.
+    - **STA Mode**: The ESP32 connects to an existing WiFi network for remote access.
+- **Web Interface**:
+  - Configure WiFi settings (AP/STA SSID and password).
+  - Enable or disable individual sensor channels.
+  - View temperature data and graphs.
+- **Frontend Integration**: The web interface is built using the `frontend` folder and is included in the device firmware during flashing.
 
-## How to use example
+## How It Works
 
-Follow detailed instructions provided specifically for this example.
+1. **Temperature Sensing**:
+   - The ESP32 reads raw ADC values from the connected NTC thermistors.
+   - The raw values are converted to temperatures using the Steinhart-Hart equation.
 
-Select the instructions depending on Espressif chip installed on your development board:
+2. **LCD Display**:
+   - The 20x4 HD44780 LCD displays the temperature readings for all active channels.
+   - Additional system information, such as WiFi status, is also shown.
 
-- [ESP32 Getting Started Guide](https://docs.espressif.com/projects/esp-idf/en/stable/get-started/index.html)
-- [ESP32-S2 Getting Started Guide](https://docs.espressif.com/projects/esp-idf/en/latest/esp32s2/get-started/index.html)
+3. **WiFi Capabilities**:
+   - In **AP Mode**, the ESP32 creates a local WiFi network for direct connection.
+   - In **STA Mode**, the ESP32 connects to a user-specified WiFi network for remote access.
 
+4. **Web Interface**:
+   - The web interface allows users to configure WiFi settings, enable/disable sensors, and view temperature data.
+   - The interface is built using modern web technologies and is served directly from the ESP32 internal FATFS.
 
-## Example folder contents
+## Building and Flashing
 
-The project **hello_world** contains one source file in C language [hello_world_main.c](main/hello_world_main.c). The file is located in folder [main](main).
+1. **Frontend Build**:
+   - Navigate to the `frontend/sta-settings` folder.
+   - Run the following commands to build the frontend:
+     ```sh
+     npm install
+     npm run build
+     ```
+   - The built files will be included in the firmware during the flashing process.
 
-ESP-IDF projects are built using CMake. The project build configuration is contained in `CMakeLists.txt` files that provide set of directives and instructions describing the project's source files and targets (executable, library, or both).
+2. **Flashing the Device**:
+   - Use the ESP-IDF build system to compile and flash the firmware:
+     ```sh
+     idf.py build
+     idf.py flash
+     ```
 
-Below is short explanation of remaining files in the project folder.
-
-```
-├── CMakeLists.txt
-├── pytest_hello_world.py      Python script used for automated testing
-├── main
-│   ├── CMakeLists.txt
-│   └── hello_world_main.c
-└── README.md                  This is the file you are currently reading
-```
-
-For more information on structure and contents of ESP-IDF projects, please refer to Section [Build System](https://docs.espressif.com/projects/esp-idf/en/latest/esp32/api-guides/build-system.html) of the ESP-IDF Programming Guide.
+3. **Accessing the Web Interface**:
+   - In AP Mode, connect to the ESP32's WiFi network (default SSID: `ESP32-AP`, password: `12345678`).
+   - Open a browser and navigate to `http://192.168.4.1`.
 
 ## Troubleshooting
 
-* Program upload failure
+- **Program Upload Failure**:
+  - Ensure the hardware connection is correct. Use `idf.py -p PORT monitor` to check for logs.
+  - Lower the baud rate in the `menuconfig` menu if the upload fails.
 
-    * Hardware connection is not correct: run `idf.py -p PORT monitor`, and reboot your board to see if there are any output logs.
-    * The baud rate for downloading is too high: lower your baud rate in the `menuconfig` menu, and try again.
+- **WiFi Connection Issues**:
+  - Verify the SSID and password for STA mode.
+  - Check the signal strength of the target WiFi network.
 
-## Technical support and feedback
-
-Please use the following feedback channels:
-
-* For technical queries, go to the [esp32.com](https://esp32.com/) forum
-* For a feature request or bug report, create a [GitHub issue](https://github.com/espressif/esp-idf/issues)
-
-We will get back to you as soon as possible.
+We hope you enjoy using this project!
