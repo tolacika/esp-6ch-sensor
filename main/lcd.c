@@ -28,6 +28,17 @@ static uint8_t cursor_row = 0;
 
 static lcd_screen_state_t lcd_screen_state = LCD_SCREEN_SPLASH;
 
+static void replace_zeros_with_spaces(char *buffer, size_t length)
+{
+    for (size_t i = 0; i < length; i++)
+    {
+        if (buffer[i] == '\0')
+        {
+            buffer[i] = ' ';
+        }
+    }
+}
+
 static esp_err_t i2c_send_with_toggle(uint8_t data)
 {
     // Helper function to toggle the enable bit
@@ -56,41 +67,43 @@ static esp_err_t i2c_send_4bit_data(uint8_t data, uint8_t rs)
 
 static void handle_wifi_state_change()
 {
-    if (system_state.wifi_state == WIFI_STATE_TRANSITION)
+    if (system_state.wifi_state == WIFI_STATE_AP)
     {
-        memcpy(status_line_buffer, "Wifi: Connecting", 16);
-    }
-    else if (system_state.wifi_state == WIFI_STATE_AP)
-    {
-        memcpy(status_line_buffer, "Wifi: AP mode", 13);
+        memset(status_line_buffer, ' ', LCD_COLS);
+        sniprintf(status_line_buffer, sizeof(status_line_buffer), "AP: %s", system_state.ap_ssid);
+        replace_zeros_with_spaces(status_line_buffer, sizeof(status_line_buffer));
     }
     else if (system_state.wifi_state == WIFI_STATE_STA)
     {
+        memset(status_line_buffer, ' ', LCD_COLS);
         switch (system_state.wifi_sta_connection_state)
         {
         case 0:
             esp_ip4_addr_t *ip_addr = &system_state.wifi_current_ip;
-            sprintf(status_line_buffer, "IP: " IPSTR, IP2STR(ip_addr));
-            ESP_LOGI(TAG, "WiFi connected, IP: " IPSTR, IP2STR(ip_addr));
+            sniprintf(status_line_buffer, sizeof(status_line_buffer), "IP: " IPSTR, IP2STR(ip_addr));
+            replace_zeros_with_spaces(status_line_buffer, sizeof(status_line_buffer));
+            //ESP_LOGI(TAG, "WiFi connected, IP: " IPSTR, IP2STR(ip_addr));
             break;
         case 201: // WIFI_REASON_NO_AP_FOUND
-            memcpy(status_line_buffer, "Wifi: Invalid SSID", 18);
+            memcpy(status_line_buffer, "STA: Invalid SSID", 17);
             break;
         case 202: // WIFI_REASON_AUTH_FAIL
-            memcpy(status_line_buffer, "Wifi: Auth failed", 17);
+            memcpy(status_line_buffer, "STA: Auth failed", 16);
             break;
         default:
             char reason_buffer[4];
-            memcpy(status_line_buffer, "Wifi: disconn.", 14);
-            sprintf(reason_buffer, "%3d", system_state.wifi_sta_connection_state);
+            memcpy(status_line_buffer, "STA: disconn.", 13);
+            siprintf(reason_buffer, "%3d", system_state.wifi_sta_connection_state);
             memcpy(status_line_buffer + 15, reason_buffer, 3);
             break;
         }
     }
     else if (system_state.wifi_state == WIFI_STATE_NONE)
     {
-        memcpy(status_line_buffer, "Wifi: No connection", 19);
+        memset(status_line_buffer, ' ', LCD_COLS);
+        memcpy(status_line_buffer, "Wifi: Not Set", 13);
     }
+    next_render_requested = true; // Request a render update
 }
 
 static void lcd_event_handler(void *handler_arg, esp_event_base_t base, int32_t id, void *event_data)
@@ -108,11 +121,11 @@ static void lcd_event_handler(void *handler_arg, esp_event_base_t base, int32_t 
                 lcd_next_screen(); // Cycle to the next screen
             }
             break;
-        case EVENT_BUTTON_LONG_PRESS:
+        /*case EVENT_BUTTON_LONG_PRESS:
             ESP_LOGI(TAG, "Long button press detected");
             lcd_screen_state = LCD_SCREEN_AP_MODE; // Set screen state to AP mode
             next_render_requested = true;
-            break;
+            break;*/
         case EVENT_WIFI_STATE_CHANGED:
             handle_wifi_state_change(); // Handle WiFi state change
             break;
@@ -451,16 +464,22 @@ void lcd_status_screen(int8_t index)
         lcd_write_text("Pass:");
         lcd_copy_to_buffer(system_state.sta_pass, 15, 5, 2);
         lcd_set_cursor(0, 3);
-        lcd_write_text("IP:");
-        if (system_state.wifi_current_ip.addr == 0)
+        if (system_state.wifi_state == WIFI_STATE_AP)
         {
-            lcd_copy_to_buffer("No IP", 5, 3, 3);
+            lcd_write_text("Disabled");
         }
-        else
-        {
-            char ip_buffer[18];
-            sprintf(ip_buffer, IPSTR, IP2STR(&system_state.wifi_current_ip));
-            lcd_copy_to_buffer(ip_buffer, 15, 3, 3);
+        else {
+            lcd_write_text("IP:");
+            if (system_state.wifi_current_ip.addr == 0)
+            {
+                lcd_copy_to_buffer("No IP", 5, 3, 3);
+            }
+            else
+            {
+                char ip_buffer[18];
+                sniprintf(ip_buffer, sizeof(ip_buffer), IPSTR, IP2STR(&system_state.wifi_current_ip));
+                lcd_copy_to_buffer(ip_buffer, 15, 3, 3);
+            }
         }
         break;
     case 1:
@@ -472,7 +491,24 @@ void lcd_status_screen(int8_t index)
         lcd_write_text("Pass:");
         lcd_copy_to_buffer(system_state.ap_pass, 15, 5, 2);
         lcd_set_cursor(0, 3);
-        lcd_write_text("Status: Disabled");
+        if (system_state.wifi_state == WIFI_STATE_STA)
+        {
+            lcd_write_text("Disabled");
+        }
+        else
+        {
+            lcd_write_text("IP:");
+            if (system_state.wifi_current_ip.addr == 0)
+            {
+                lcd_copy_to_buffer("No IP", 5, 3, 3);
+            }
+            else
+            {
+                char ip_buffer[18];
+                sniprintf(ip_buffer, sizeof(ip_buffer), IPSTR, IP2STR(&system_state.wifi_current_ip));
+                lcd_copy_to_buffer(ip_buffer, 15, 3, 3);
+            }
+        }
         break;
     case 2:
 
@@ -480,13 +516,6 @@ void lcd_status_screen(int8_t index)
     default:
         break;
     }
-
-    /*EventBits_t bits = xEventGroupGetBits(get_event_group());
-    if (bits & WIFI_CONNECTED_BIT) {
-        lcd_write_text("Connected");
-    } else {
-        lcd_write_text("Disconnected");
-    }*/
 }
 
 void lcd_status_line(void)

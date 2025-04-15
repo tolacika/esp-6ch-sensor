@@ -17,8 +17,6 @@
 
 /* Todos:
  * - Deinitialize modules on shutdown event
- * - Refactor wifi_manager.c because of wifi_startup_mode is introduced
- *   - Remove WIFI_STATE_TRANSITION state
  * - Merge fatfs with nvs_manager, maybe use it instead of nvs for storing config
  * - Update frontend source from CDN.
 */
@@ -57,16 +55,7 @@ void app_main(void)
 
     lcd_set_screen_state(LCD_SCREEN_TEMP_AND_STATUS);
 
-    if (system_state.wifi_startup_mode == WIFI_STARTUP_MODE_AP)
-    {
-        ESP_LOGI("main", "Starting in AP mode");
-        wifi_connect_ap();
-    }
-    else
-    {
-        ESP_LOGI("main", "Starting in STA mode");
-        wifi_connect_sta();
-    }
+    wifi_connect();
 
     vTaskDelay(pdMS_TO_TICKS(100));
 

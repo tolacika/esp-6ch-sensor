@@ -27,7 +27,6 @@ typedef enum {
     WIFI_STATE_NONE = 0,
     WIFI_STATE_STA,
     WIFI_STATE_AP,
-    WIFI_STATE_TRANSITION
 } wifi_state_t;
 
 typedef enum {
