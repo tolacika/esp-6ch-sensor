@@ -15,6 +15,7 @@
 #include "config.h"
 #include "state_manager.h"
 #include "esp_netif_ip_addr.h"
+#include "fatfs_manager.h"
 
 #define SYSTEM_STATE_SET(field, value) \
     system_state_set(&system_state.field, &value, sizeof(value))

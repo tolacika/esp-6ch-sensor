@@ -7,6 +7,9 @@
 // EventGroupHandle_t wifi_event_group;
 static const char *TAG = "wifi_ap";
 
+static esp_netif_t *ap_netif = NULL;
+static esp_netif_t *sta_netif = NULL; 
+
 static void event_handler(void *arg, esp_event_base_t event_base, int32_t event_id, void *event_data)
 {
     ESP_LOGI(TAG, "Event received: %s, ID: %ld", event_base, event_id);

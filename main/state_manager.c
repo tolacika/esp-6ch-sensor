@@ -94,40 +94,12 @@ void dump_string(const char *buffer, size_t length)
     }
 }
 
-/*void test_system_state(void)
-{
-    log_system_state();
-
-    vTaskDelay(pdMS_TO_TICKS(100));
-
-    char buffer[SSID_MAX_LEN];
-    memcpy(buffer, system_state.ap_ssid, SSID_MAX_LEN);
-    ESP_LOGI(TEST_TAG, "SSIDa: %s", buffer);
-
-    dump_string(buffer, SSID_MAX_LEN);
-
-    vTaskDelay(pdMS_TO_TICKS(100));
-
-    store_running_config();
-
-    ESP_LOGI(TEST_TAG, "Stored running config");
-
-    vTaskDelay(pdMS_TO_TICKS(100));
-
-    log_system_state();
-
-    vTaskDelay(pdMS_TO_TICKS(1000));
-
-    read_running_config();
-
-    vTaskDelay(pdMS_TO_TICKS(100));
-
-    log_system_state();
-}*/
-
 void system_initialize(void)
 {
     memset(&system_state, 0, sizeof(system_state_t)); // Initialize system state to zero
+
+    fatfs_init();
+
     // Initialize NVS and read config
     nvs_initialize();
     read_running_config();

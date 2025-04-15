@@ -15,12 +15,18 @@
 #include "server.h"
 #include "fatfs_manager.h"
 
+/* Todos:
+ * - Deinitialize modules on shutdown event
+ * - Refactor wifi_manager.c because of wifi_startup_mode is introduced
+ *   - Remove WIFI_STATE_TRANSITION state
+ * - Merge fatfs with nvs_manager, maybe use it instead of nvs for storing config
+ * - Update frontend source from CDN.
+*/
+
 void app_main(void)
 {
     vTaskDelay(pdMS_TO_TICKS(3000));
     ESP_LOGI("main", "Prio: %d, Core: %d", uxTaskPriorityGet(NULL), xPortGetCoreID());
-
-    fatfs_init();
     
     system_initialize();
 
