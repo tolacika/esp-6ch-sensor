@@ -1,6 +1,5 @@
 #include "server.h"
 #include "cJSON.h"
-#include "fatfs_manager.h"
 
 #ifndef MIN
 #define MIN(a, b) ((a) < (b) ? (a) : (b))

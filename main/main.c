@@ -13,7 +13,6 @@
 #include "ntc_adc.h"
 #include "lcd.h"
 #include "server.h"
-#include "fatfs_manager.h"
 
 /* Todos:
  * - Deinitialize modules on shutdown event

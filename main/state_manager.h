@@ -5,6 +5,14 @@
 #include <stddef.h>
 #include <string.h>
 #include <stdbool.h>
+#include <fcntl.h>
+#include <unistd.h>
+#include <dirent.h>
+#include <time.h>
+#include <sys/stat.h>
+#include <sys/errno.h>
+#include <stdlib.h>
+#include <stdio.h>
 #include "nvs_flash.h"
 #include "nvs_manager.h"
 #include "freertos/FreeRTOS.h"
@@ -15,13 +23,13 @@
 #include "config.h"
 #include "state_manager.h"
 #include "esp_netif_ip_addr.h"
-#include "fatfs_manager.h"
+#include "esp_vfs.h"
+#include "esp_vfs_fat.h"
+#include "esp_system.h"
+#include "esp_http_server.h"
 
-#define SYSTEM_STATE_SET(field, value) \
-    system_state_set(&system_state.field, &value, sizeof(value))
-
-#define SYSTEM_STATE_GET(field, output) \
-    system_state_get(&system_state.field, &output, sizeof(output))
+#define FILE_PATH_MAX (ESP_VFS_PATH_MAX + 128)
+#define SCRATCH_BUFSIZE (10240)
 
 typedef enum {
     WIFI_STATE_NONE = 0,
@@ -43,7 +51,6 @@ typedef struct
     wifi_state_t wifi_state;
     char ap_ssid[SSID_MAX_LEN];
     char ap_pass[PASS_MAX_LEN];
-    int32_t ap_channel;
     char sta_ssid[SSID_MAX_LEN];
     char sta_pass[PASS_MAX_LEN];
     int8_t sensor_mask;
@@ -64,12 +71,6 @@ enum {
 
 extern system_state_t system_state;
 
-void test_system_state(void);
-
-void log_system_state(void);
-
-void dump_string(const char *buffer, size_t length);
-
 void system_initialize(void);
 
 void nvs_initialize();
@@ -78,15 +79,22 @@ void system_state_set(void *field_ptr, const void *value, size_t size);
 
 void system_state_get(const void *field_ptr, void *output, size_t size);
 
+void store_running_config_in_fatfs();
+
 void store_running_config();
+
+void read_running_config_from_fatfs();
 
 void read_running_config();
 
-// Function prototypes
 void events_init(void);
 
 void events_post(int32_t event_id, const void* event_data, size_t event_data_size);
 
 void events_subscribe(int32_t event_id, esp_event_handler_t event_handler, void* event_handler_arg);
+
+void fatfs_init(void);
+
+esp_err_t send_file_from_fatfs(httpd_req_t *req, const char *file_path, const char *content_type);
 
 #endif // STATE_MANAGER_H

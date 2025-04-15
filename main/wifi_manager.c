@@ -157,7 +157,6 @@ void wifi_ap_init(void)
             .password = "",
             .max_connection = WIFI_AP_MAX_CONN,
             .authmode = WIFI_AUTH_WPA_WPA2_PSK,
-            .channel = system_state.ap_channel,
         },
     };
 

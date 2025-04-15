@@ -6,7 +6,6 @@
 
 #define AP_SSID_KEY "as"
 #define AP_PASS_KEY "ap"
-#define AP_CHANNEL_KEY "ac"
 #define STA_SSID_KEY "ss"
 #define STA_PASS_KEY "sp"
 #define SENSOR_MASK_KEY "sm"

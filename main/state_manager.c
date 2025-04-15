@@ -1,8 +1,12 @@
 #include "state_manager.h"
 #include "esp_log.h"
 
+bool test_file(const char *path);
+void test_files(void);
+void list_dir(const char *path);
+void print_file(const char *path); 
+
 const char *TAG = "state_manager";
-const char *TEST_TAG = "test_system_state";
 
 system_state_t system_state = {
     .wifi_sta_connection_state = 0,
@@ -10,88 +14,49 @@ system_state_t system_state = {
     .wifi_state = WIFI_STATE_NONE,
     .ap_ssid = {0},
     .ap_pass = {0},
-    .ap_channel = 0,
     .sta_ssid = {0},
     .sta_pass = {0},
     .sensor_mask = 0,
     .wifi_startup_mode = WIFI_STARTUP_MODE_NONE,
 };
 
-static esp_event_loop_handle_t custom_event_loop = NULL; // Custom event loop handle
-ESP_EVENT_DEFINE_BASE(CUSTOM_EVENTS);                    // Define the event base for custom events
+// Custom event loop handle
+static esp_event_loop_handle_t custom_event_loop = NULL;
 
-void log_system_state(void)
+// Define the event base for custom events
+ESP_EVENT_DEFINE_BASE(CUSTOM_EVENTS);
+
+// Handle of the wear levelling library instance
+static wl_handle_t s_wl_handle = WL_INVALID_HANDLE;
+
+// Mount path for the partition
+const char *base_path = "/spiflash";
+
+static const char *config_file_path = "/spiflash/esp.conf";
+
+extern const char default_config_ini_start[] asm("_binary_config_ini_default_start");
+extern const char default_config_ini_end[] asm("_binary_config_ini_default_end");
+
+esp_err_t create_default_config_file()
 {
-    ESP_LOGI(TEST_TAG, "Prio: %d, Core: %d", uxTaskPriorityGet(NULL), xPortGetCoreID());
-
-    system_state_t *state = malloc(sizeof(system_state_t));
-    if (state == NULL)
+    ESP_LOGI(TAG, "Creating default config file");
+    size_t default_config_size = default_config_ini_end - default_config_ini_start;
+    int file = open(config_file_path, O_RDWR | O_CREAT, 0644);
+    if (file < 0)
     {
-        ESP_LOGE(TEST_TAG, "Failed to allocate memory for system_state_t");
-        return;
+        ESP_LOGE(TAG, "Failed to create config file: %s", strerror(errno));
+        return ESP_FAIL;
     }
-    memcpy(state, &system_state, sizeof(system_state_t));
-    ESP_LOGI(TEST_TAG, "wifi_sta_connection_state: %d", state->wifi_sta_connection_state);
-    ESP_LOGI(TEST_TAG, "wifi_ap_connection_state: %d", state->wifi_ap_connection_state);
-    // ESP_LOGI(TEST_TAG, "wifi_current_ip: %d.%d.%d.%d", IP2STR(state->wifi_current_ip));
-    ESP_LOGI(TEST_TAG, "wifi_state: %d", state->wifi_state);
-    ESP_LOGI(TEST_TAG, "ap_ssid: %s", state->ap_ssid);
-    ESP_LOGI(TEST_TAG, "ap_pass: %s", state->ap_pass);
-    ESP_LOGI(TEST_TAG, "ap_channel: %ld", state->ap_channel);
-    ESP_LOGI(TEST_TAG, "sta_ssid: %s", state->sta_ssid);
-    ESP_LOGI(TEST_TAG, "sta_pass: %s", state->sta_pass);
-    ESP_LOGI(TEST_TAG, "sizeof(state): %d", sizeof(&state));
-
-    free(state);
-}
-
-void dump_string(const char *buffer, size_t length)
-{
-    printf("Buffer length: %zu\n", length);
-    printf("Buffer content:\n");
-    for (size_t i = 0; i < length; i++)
+    ssize_t written = write(file, default_config_ini_start, default_config_size);
+    if (written < 0)
     {
-        printf("%02X ", (unsigned char)buffer[i]);
-        if ((i + 1) % 8 == 0)
-        {
-            printf(" ");
-        }
-        if ((i + 1) % 16 == 0)
-        {
-            for (size_t j = i - 15; j <= i; j++)
-            {
-                if (buffer[j] >= 32 && buffer[j] <= 126) // Printable ASCII range
-                {
-                    printf("%c", buffer[j]);
-                }
-                else if (buffer[j] == '\n')
-                {
-                    printf("\\n");
-                }
-                else if (buffer[j] == '\r')
-                {
-                    printf("\\r");
-                }
-                else if (buffer[j] == '\t')
-                {
-                    printf("\\t");
-                }
-                else if (buffer[j] == '\0')
-                {
-                    printf("\\0");
-                }
-                else
-                {
-                    printf(".");
-                }
-            }
-            printf("\n");
-        }
+        ESP_LOGE(TAG, "Failed to write to config file: %s", strerror(errno));
+        close(file);
+        return ESP_FAIL;
     }
-    if (length % 16 != 0)
-    {
-        printf("\n");
-    }
+    close(file);
+    ESP_LOGI(TAG, "Default config file created successfully");
+    return ESP_OK;
 }
 
 void system_initialize(void)
@@ -99,6 +64,30 @@ void system_initialize(void)
     memset(&system_state, 0, sizeof(system_state_t)); // Initialize system state to zero
 
     fatfs_init();
+
+    vTaskDelay(pdMS_TO_TICKS(100));
+
+    if (test_file("/spiflash/esp.conf"))
+    {
+        ESP_LOGI(TAG, "Config file exists");
+    }
+    else
+    {
+        ESP_ERROR_CHECK(create_default_config_file());
+        list_dir(base_path);
+    }
+    print_file(config_file_path);
+
+    system_state_t *state = calloc(1, sizeof(system_state_t));
+    if (state == NULL)
+    {
+        ESP_LOGE(TAG, "Failed to allocate memory for system_state_t");
+        return;
+    }
+    memcpy(state, &system_state, sizeof(system_state_t));
+
+    read_running_config();
+
 
     // Initialize NVS and read config
     nvs_initialize();
@@ -126,6 +115,11 @@ void system_state_get(const void *field_ptr, void *output, size_t size)
     memcpy(output, field_ptr, size);
 }
 
+void store_running_config_in_fatfs()
+{
+
+}
+
 void store_running_config()
 {
     ESP_LOGI(TAG, "Storing running config to NVS");
@@ -142,14 +136,16 @@ void store_running_config()
     store_string(STA_PASS_KEY, system_state.sta_pass);
     ESP_LOGI(TAG, "Storing STA Password: %s", system_state.sta_pass);
 
-    store_int(AP_CHANNEL_KEY, system_state.ap_channel);
-    ESP_LOGI(TAG, "Storing AP Channel: %ld", system_state.ap_channel);
-
     store_int(SENSOR_MASK_KEY, system_state.sensor_mask);
     ESP_LOGI(TAG, "Storing Sensor Mask: %d", system_state.sensor_mask);
 
     store_int(WIFI_STARTUP_MODE_KEY, system_state.wifi_startup_mode);
     ESP_LOGI(TAG, "Stored running config to NVS successfully");
+}
+
+void read_running_config_from_fatfs()
+{
+
 }
 
 void read_running_config()
@@ -187,7 +183,7 @@ void read_running_config()
     }
 
     buffer_size = SSID_MAX_LEN;
-    memset(buffer, 0, buffer_size); // Clear buffer for next use
+    memset(buffer, 0, buffer_size);
 
     err = read_string(STA_SSID_KEY, buffer, &buffer_size);
     if (err == ESP_OK)
@@ -247,7 +243,7 @@ void read_running_config()
     }
 
     buffer_size = PASS_MAX_LEN;
-    memset(buffer, 0, buffer_size); // Clear buffer for next use
+    memset(buffer, 0, buffer_size);
     err = read_string(STA_PASS_KEY, buffer, &buffer_size);
     if (err == ESP_OK)
     {
@@ -274,28 +270,6 @@ void read_running_config()
     free(buffer); // Free buffer after use
 
     int32_t buffer_int = 0;
-    err = read_int(AP_CHANNEL_KEY, &buffer_int);
-    if (err == ESP_OK)
-    {
-        ESP_LOGI(TAG, "AP Channel found: %ld", buffer_int);
-        system_state.ap_channel = buffer_int;
-    }
-    else if (err == ESP_ERR_NVS_NOT_FOUND)
-    {
-        ESP_LOGI(TAG, "AP Channel not found, using default: %d", CONFIG_DEFAULT_AP_CHANNEL);
-        system_state.ap_channel = CONFIG_DEFAULT_AP_CHANNEL;
-    }
-    else
-    {
-        ESP_LOGE(TAG, "Error reading AP Channel: %s", esp_err_to_name(err));
-    }
-    // Validate channel range (1-13)
-    if (system_state.ap_channel < 1 || system_state.ap_channel > 13)
-    {
-        ESP_LOGE(TAG, "Invalid AP channel: %ld. Setting to default: %d", system_state.ap_channel, 1);
-        system_state.ap_channel = 1;
-    }
-
     err = read_int(SENSOR_MASK_KEY, &buffer_int);
     if (err == ESP_OK)
     {
@@ -334,15 +308,6 @@ void read_running_config()
         ESP_LOGE(TAG, "Invalid WiFi Startup Mode: %d. Setting to default: %d", system_state.wifi_startup_mode, WIFI_STARTUP_MODE_AP);
         system_state.wifi_startup_mode = WIFI_STARTUP_MODE_AP;
     }
-
-    // ESP_LOGI(TAG, "AP SSID:");
-    // dump_string(system_state.ap_ssid, SSID_MAX_LEN);
-    // ESP_LOGI(TAG, "AP Password:");
-    // dump_string(system_state.ap_pass, PASS_MAX_LEN);
-    // ESP_LOGI(TAG, "STA SSID:");
-    // dump_string(system_state.sta_ssid, SSID_MAX_LEN);
-    // ESP_LOGI(TAG, "STA Password:");
-    // dump_string(system_state.sta_pass, PASS_MAX_LEN);
 }
 
 static void application_task(void *args)
@@ -416,4 +381,87 @@ void events_subscribe(int32_t event_id, esp_event_handler_t event_handler, void 
     {
         ESP_LOGE(TAG, "Failed to subscribe to event: %s", esp_err_to_name(err));
     }
+}
+
+esp_err_t send_file_from_fatfs(httpd_req_t *req, const char *file_path, const char *content_type)
+{
+    ESP_LOGI(TAG, "Serving file: %s", file_path);
+
+    char filename[128];
+    if (file_path[0] == '/')
+    {
+        snprintf(filename, sizeof(filename), "%s%s", base_path, file_path);
+    }
+    else
+    {
+        snprintf(filename, sizeof(filename), "%s/%s", base_path, file_path);
+    }
+    ESP_LOGI(TAG, "Full file path: %s", filename);
+
+    int file = open(filename, O_RDONLY, 0);
+    if (file < 0)
+    {
+        ESP_LOGE(TAG, "Failed to open file: %s", filename);
+        return ESP_FAIL;
+    }
+
+    char *buffer = calloc(1, SCRATCH_BUFSIZE);
+    if (buffer == NULL)
+    {
+        ESP_LOGE(TAG, "Failed to allocate buffer for file read");
+        close(file);
+        return ESP_FAIL;
+    }
+    ssize_t bytes_read = 0;
+
+    do
+    {
+        bytes_read = read(file, buffer, SCRATCH_BUFSIZE);
+        if (bytes_read == -1) {
+            ESP_LOGE(TAG, "Failed to read file : %s", file_path);
+        } else if (bytes_read > 0) {
+            /* Send the buffer contents as HTTP response chunk */
+            if (httpd_resp_send_chunk(req, buffer, bytes_read) != ESP_OK) {
+                close(file);
+                ESP_LOGE(TAG, "File sending failed!");
+                /* Abort sending file */
+                httpd_resp_sendstr_chunk(req, NULL);
+                /* Respond with 500 Internal Server Error */
+                httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Failed to send file");
+                return ESP_FAIL;
+            }
+        }
+    } while (bytes_read > 0);
+    close(file);
+
+    httpd_resp_set_type(req, content_type);
+    httpd_resp_send_chunk(req, NULL, 0);
+
+    return ESP_OK;
+}
+
+void fatfs_init(void)
+{
+    ESP_LOGI(TAG, "Mounting FAT filesystem");
+    const esp_vfs_fat_mount_config_t mount_config = {
+        .max_files = 4,
+        .format_if_mount_failed = false,
+        .allocation_unit_size = CONFIG_WL_SECTOR_SIZE,
+        .use_one_fat = false,
+    };
+    esp_err_t ret = esp_vfs_fat_spiflash_mount_rw_wl(base_path, "storage", &mount_config, &s_wl_handle);
+    if (ret != ESP_OK) {
+        if (ret == ESP_FAIL) {
+            ESP_LOGE(TAG, "Failed to mount or format filesystem");
+        } else if (ret == ESP_ERR_NOT_FOUND) {
+            ESP_LOGE(TAG, "Failed to find FATFS partition");
+        } else {
+            ESP_LOGE(TAG, "Failed to initialize FATFS (%s)", esp_err_to_name(ret));
+        }
+        return;
+    }
+    ESP_LOGI(TAG, "FATFS mounted successfully at %s", base_path);
+
+    test_files();
+    list_dir(base_path);
 }
