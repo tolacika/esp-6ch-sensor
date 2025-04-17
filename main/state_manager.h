@@ -30,6 +30,7 @@
 
 #define FILE_PATH_MAX (ESP_VFS_PATH_MAX + 128)
 #define SCRATCH_BUFSIZE (10240)
+#define CONFIG_FILE_MAX_LEN (256)
 
 typedef enum {
     WIFI_STATE_NONE = 0,
@@ -79,11 +80,13 @@ void system_state_set(void *field_ptr, const void *value, size_t size);
 
 void system_state_get(const void *field_ptr, void *output, size_t size);
 
-void store_running_config_in_fatfs();
+esp_err_t load_default_running_config();
+
+esp_err_t store_running_config_in_fatfs();
 
 void store_running_config();
 
-void read_running_config_from_fatfs();
+esp_err_t read_running_config_from_fatfs();
 
 void read_running_config();
 
@@ -93,7 +96,9 @@ void events_post(int32_t event_id, const void* event_data, size_t event_data_siz
 
 void events_subscribe(int32_t event_id, esp_event_handler_t event_handler, void* event_handler_arg);
 
-void fatfs_init(void);
+esp_err_t mount_fatfs(void);
+
+esp_err_t unmount_fatfs(void);
 
 esp_err_t send_file_from_fatfs(httpd_req_t *req, const char *file_path, const char *content_type);
 

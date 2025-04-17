@@ -55,7 +55,9 @@ static void event_handler(void *arg, esp_event_base_t event_base, int32_t event_
             system_state_set(&system_state.wifi_current_ip, NULL, 0); // Clear current IP address
             // Trigger EVENT_WIFI_DISCONNECTED
 
-            // esp_wifi_connect(); // Retry connection
+            vTaskDelay(pdMS_TO_TICKS(3000));
+            ESP_LOGI(TAG, "Retrying connection...");
+            esp_wifi_connect(); // Retry connection
             break;
         }
         break;
@@ -115,6 +117,9 @@ void wifi_sta_init(void)
 
     strlcpy((char *)wifi_config.sta.ssid, system_state.sta_ssid, sizeof(wifi_config.sta.ssid));
     strlcpy((char *)wifi_config.sta.password, system_state.sta_pass, sizeof(wifi_config.sta.password));
+
+    ESP_LOGI(TAG, "Connecting to SSID: %s", wifi_config.sta.ssid);
+    ESP_LOGI(TAG, "Password: %s", wifi_config.sta.password);
 
     ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
     ESP_ERROR_CHECK(esp_wifi_set_config(ESP_IF_WIFI_STA, &wifi_config));

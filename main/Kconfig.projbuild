@@ -1,4 +1,4 @@
-menu "Application WiFi settings"
+menu "Application settings"
 
     config DEFAULT_STA_SSID
         string "Default STA SSID (max 20 chars)"
@@ -24,12 +24,34 @@ menu "Application WiFi settings"
         help
             Password of the access point for configuring the device
 
-    config DEFAULT_AP_CHANNEL
-        int "Default AP channel"
-        default 1
-        range 1 13
+    choice DEFAULT_WIFI_STARTUP_MODE
+        prompt "Default WiFi startup mode"
+        default DEFAULT_WIFI_STARTUP_MODE_AP
         help
-            WiFi channel of the access point for configuring the device (1-13).
+            Select the default WiFi startup mode.
+
+        config DEFAULT_WIFI_STARTUP_MODE_STA
+            bool "STA Mode"
+            help
+                Start the device in Station (STA) mode.
+
+        config DEFAULT_WIFI_STARTUP_MODE_AP
+            bool "AP Mode"
+            help
+                Start the device in Access Point (AP) mode.
+
+    endchoice
+
+    config DEFAULT_SENSOR_MASK
+        int "Default sensor bitmask"
+        default 63
+        help
+            Default sensor bitmask for the device. This is a bitmask
+            representing the sensors that are enabled. For example,
+            if you want to enable sensors 0, 1, and 2, set this to 7
+            (binary 0b00000111). The maximum value is 63 (binary 0b00111111).
+            The bitmask is used to determine which sensors are enabled
+            and which are disabled.
 
 endmenu
 

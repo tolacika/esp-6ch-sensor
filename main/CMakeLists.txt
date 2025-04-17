@@ -1,8 +1,7 @@
 idf_component_register(SRCS "prototype_functions.c" "nvs_manager.c" "state_manager.c" "main.c"
     "wifi_manager.c" "status_led.c" "button_manager.c" "ntc_adc.c" "lcd.c" "server.c"
     "prototype_functions.c"
-    INCLUDE_DIRS "."
-    EMBED_FILES "config.ini.default")
+    INCLUDE_DIRS ".")
 
 set(image_src ../default_files)
 
