@@ -71,18 +71,35 @@ static esp_err_t dump_request(httpd_req_t *req)
     return ESP_OK;
 }
 
-static esp_err_t send_favicon(httpd_req_t *req)
+static esp_err_t send_dynamic_file(httpd_req_t *req)
 {
-    ESP_LOGI(TAG, "Serve favicon.ico");
+    ESP_LOGI(TAG, "Serve dynamic file: %s", req->uri);
+    const char *file_path = req->uri;
+    if (file_path[0] == '/')
+    {
+        file_path++;
+    }
+    if (file_path[0] == '\0')
+    {
+        file_path = "index.html";
+    }
+    ESP_LOGI(TAG, "Full file path: %s", file_path);
 
-    return send_file_from_fatfs(req, "/favicon.ico", "image/x-icon");
-}
+    esp_err_t err = file_exists_in_fatfs(file_path);
+    if (err != ESP_OK)
+    {
+        ESP_LOGE(TAG, "File does not exist: %s", esp_err_to_name(err));
+        return send_error_response(req, "404 Not Found", "File not found");
+    }
 
-static esp_err_t send_index_html(httpd_req_t *req)
-{
-    ESP_LOGI(TAG, "Serve esp STA static HTML page");
-
-    return send_file_from_fatfs(req, "/index.html", "text/html");
+    err = send_file_from_fatfs(req, file_path);
+    if (err != ESP_OK)
+    {
+        ESP_LOGE(TAG, "Failed to send file: %s", esp_err_to_name(err));
+        return send_error_response(req, "500 Internal Server Error", "Failed to send file");
+    }
+    ESP_LOGI(TAG, "File sent successfully: %s", file_path);
+    return ESP_OK;
 }
 
 static esp_err_t get_post_field_value(const char *buffer, const char *field, char *value, size_t value_len)
@@ -175,7 +192,7 @@ static esp_err_t parse_ap_post_request(httpd_req_t *req)
 
     vTaskDelay(pdMS_TO_TICKS(100));
 
-    store_running_config();
+    store_running_config_in_fatfs();
     ESP_LOGI(TAG, "Running config stored");
     esp_err_t err = send_ok_response(req, "STA credentials saved successfully. Restarting ESP32...");
 
@@ -183,7 +200,7 @@ static esp_err_t parse_ap_post_request(httpd_req_t *req)
     ESP_LOGI(TAG, "Restart requested");
 
     vTaskDelay(pdMS_TO_TICKS(2000)); // wait for the event to be processed
-    esp_restart(); // restart the ESP32
+    esp_restart();                   // restart the ESP32
     ESP_LOGI(TAG, "ESP32 restarted");
 
     return err;
@@ -209,44 +226,21 @@ static esp_err_t config_http_handler(httpd_req_t *req)
     return send_ok_response(req, cJSON_Print(root));
 }
 
-static esp_err_t settings_http_handler(httpd_req_t *req)
+static esp_err_t settings_http_post_handler(httpd_req_t *req)
 {
     ESP_LOGI(TAG, "Settings handler Prio: %d, Core: %d", uxTaskPriorityGet(NULL), xPortGetCoreID());
     dump_request(req);
 
-    if (req->method == HTTP_GET)
-    {
-        ESP_LOGI(TAG, "Serving settings.html");
-        return send_index_html(req);
-    }
-    else if (req->method == HTTP_POST)
-    {
-        ESP_LOGI(TAG, "POST request received in settings handler");
-        if (parse_ap_post_request(req) == ESP_OK)
-        {
-            return ESP_OK; // Response already sent in parse_ap_post_request
-        }
-    }
-
-    return send_default_response(req);
+    ESP_LOGI(TAG, "POST request received in settings handler");
+    return parse_ap_post_request(req);
 }
 
-static esp_err_t http_handler(httpd_req_t *req)
+static esp_err_t http_get_handler(httpd_req_t *req)
 {
     ESP_LOGI(TAG, "HTTP Handler Prio: %d, Core: %d", uxTaskPriorityGet(NULL), xPortGetCoreID());
     dump_request(req);
 
-    if (system_state.wifi_state == WIFI_STATE_AP)
-    {
-        if (match_uri(req->uri, "/favicon.ico"))
-        {
-            return send_favicon(req);
-        }
-        
-        return send_302_redirect(req, "/settings.html", true);
-    }
-
-    return send_default_response(req);
+    return send_dynamic_file(req);
 }
 
 void start_http_server(void)
@@ -271,14 +265,14 @@ void start_http_server(void)
         httpd_register_uri_handler(server, &config_uri);
         httpd_uri_t settings_uri = {
             .uri = "/settings*",
-            .method = HTTP_ANY,
-            .handler = settings_http_handler,
+            .method = HTTP_POST,
+            .handler = settings_http_post_handler,
             .user_ctx = NULL};
         httpd_register_uri_handler(server, &settings_uri);
         httpd_uri_t root_uri = {
             .uri = "/*",
-            .method = HTTP_ANY,
-            .handler = http_handler,
+            .method = HTTP_GET,
+            .handler = http_get_handler,
             .user_ctx = NULL};
         httpd_register_uri_handler(server, &root_uri);
         ESP_LOGI(TAG, "HTTP server started successfully.");

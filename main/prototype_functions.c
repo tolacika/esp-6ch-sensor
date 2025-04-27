@@ -35,7 +35,8 @@ void log_system_state(void)
     free(state);
 }
 
-void dump_string_print_buffer(char c) {
+void dump_string_print_buffer(char c)
+{
     if (c >= 32 && c <= 126) // Printable ASCII range
     {
         printf("%c", c);
@@ -108,28 +109,6 @@ void dump_string(const char *buffer, size_t length)
 
 void list_dir(const char *path)
 {
-    ESP_LOGI(TAG, "Listing files in %s:", path);
-
-    DIR *dir = opendir(path);
-    if (!dir)
-    {
-        ESP_LOGE(TAG, "Failed to open directory: %s", strerror(errno));
-        return;
-    }
-
-    printf("%s:\n", path);
-    struct dirent *entry;
-    while ((entry = readdir(dir)) != NULL)
-    {
-        printf(
-            "    %s: %s\n",
-            (entry->d_type == DT_DIR)
-                ? "directory"
-                : "file     ",
-            entry->d_name);
-    }
-
-    closedir(dir);
 }
 
 bool test_file(const char *path)
@@ -155,7 +134,7 @@ void test_files(void)
     test_file("/spiflash/favicon.ico");
 }
 
-void print_file(const char* path)
+void print_file(const char *path)
 {
     ESP_LOGI(TAG, "Reading file: %s", path);
     int fd = open(path, O_RDONLY);

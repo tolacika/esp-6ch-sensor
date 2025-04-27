@@ -84,11 +84,7 @@ esp_err_t load_default_running_config();
 
 esp_err_t store_running_config_in_fatfs();
 
-void store_running_config();
-
 esp_err_t read_running_config_from_fatfs();
-
-void read_running_config();
 
 void events_init(void);
 
@@ -100,6 +96,8 @@ esp_err_t mount_fatfs(void);
 
 esp_err_t unmount_fatfs(void);
 
-esp_err_t send_file_from_fatfs(httpd_req_t *req, const char *file_path, const char *content_type);
+esp_err_t file_exists_in_fatfs(const char *file_path);
+
+esp_err_t send_file_from_fatfs(httpd_req_t *req, const char *file_path);
 
 #endif // STATE_MANAGER_H

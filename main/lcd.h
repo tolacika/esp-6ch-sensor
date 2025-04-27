@@ -73,7 +73,7 @@ void lcd_write_text(const char *str);
 void lcd_write_buffer(const char *buffer, size_t size);
 
 // Copy data to the LCD buffer at a specific position.
-void lcd_copy_to_buffer(const char *data, size_t size, int8_t col, int8_t row);
+void lcd_copy_to_lcd_buffer(const char *data, size_t size, int8_t col, int8_t row);
 
 // Clear the LCD buffer.
 void lcd_clear_buffer(void);
@@ -95,6 +95,9 @@ void lcd_temperaure_screen(bool bottom_statistics);
 
 // Display the status line on the LCD.
 void lcd_status_line(void);
+
+// Initialize the status line buffer.
+void lcd_status_line_init(void);
 
 // Display a list of status messages on the LCD.
 void lcd_status_screen(int8_t index);

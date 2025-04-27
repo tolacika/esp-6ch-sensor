@@ -3,6 +3,10 @@
 #include <string.h>
 #include "esp_netif.h"
 
+#define THING_AND_LENGTH_MINUS_ONE(thing) thing, sizeof(thing) - 1
+#define TLO(t) THING_AND_LENGTH_MINUS_ONE(t)
+void dump_string(const char *buffer, size_t length);
+
 static const char *TAG = "I2C_LCD";
 static const uint8_t COMMAND_8BIT_MODE = 0b00110000;
 static const uint8_t COMMAND_4BIT_MODE = 0b00100000;
@@ -20,7 +24,25 @@ static i2c_master_bus_handle_t i2c_bus_handle = NULL;
 static uint8_t lcd_backlight_status = LCD_BACKLIGHT;
 
 static char lcd_buffer[LCD_BUFFER_SIZE]; // 80-byte buffer for the LCD
-static char status_line_buffer[LCD_COLS];
+typedef enum
+{
+    STATUS_LINE_STA_STATE = 0,
+    STATUS_LINE_STA_SSID,
+    STATUS_LINE_STA_SSID_VALUE,
+    STATUS_LINE_STA_IP,
+    STATUS_LINE_STA_IP_VALUE,
+    STATUS_LINE_AP_STATE,
+    STATUS_LINE_AP_SSID,
+    STATUS_LINE_AP_SSID_VALUE,
+    STATUS_LINE_AP_IP,
+    STATUS_LINE_AP_IP_VALUE,
+    STATUS_LINE_DEF_WIFI_STARTUP_MODE,
+    STATUS_LINE_DEF_SENSOR_MASK,
+    STATUS_LINE_MAX
+} status_line_t;
+static char status_line_buffer[STATUS_LINE_MAX][LCD_COLS] = {
+    [0 ... STATUS_LINE_MAX - 1] = {[0 ... LCD_COLS - 1] = ' '}};
+static int status_line_buffer_index = 0;
 static bool next_render_requested = false;
 
 static uint8_t cursor_col = 0;
@@ -67,41 +89,66 @@ static esp_err_t i2c_send_4bit_data(uint8_t data, uint8_t rs)
 
 static void handle_wifi_state_change()
 {
-    if (system_state.wifi_state == WIFI_STATE_AP)
+    /*if (system_state.wifi_state == WIFI_STATE_AP)
     {
-        memset(status_line_buffer, ' ', LCD_COLS);
-        sniprintf(status_line_buffer, sizeof(status_line_buffer), "AP: %s", system_state.ap_ssid);
-        replace_zeros_with_spaces(status_line_buffer, sizeof(status_line_buffer));
+        memset(status_line_buffer[status_line_buffer_index], ' ', LCD_COLS);
+        sniprintf(status_line_buffer[status_line_buffer_index], sizeof(status_line_buffer[status_line_buffer_index]), "AP: %s", system_state.ap_ssid);
+        replace_zeros_with_spaces(status_line_buffer[status_line_buffer_index], sizeof(status_line_buffer[status_line_buffer_index]));
     }
     else if (system_state.wifi_state == WIFI_STATE_STA)
     {
-        memset(status_line_buffer, ' ', LCD_COLS);
+        memset(status_line_buffer[status_line_buffer_index], ' ', LCD_COLS);
         switch (system_state.wifi_sta_connection_state)
         {
         case 0:
             esp_ip4_addr_t *ip_addr = &system_state.wifi_current_ip;
-            sniprintf(status_line_buffer, sizeof(status_line_buffer), "IP: " IPSTR, IP2STR(ip_addr));
-            replace_zeros_with_spaces(status_line_buffer, sizeof(status_line_buffer));
+            sniprintf(status_line_buffer[status_line_buffer_index], sizeof(status_line_buffer[status_line_buffer_index]), "IP: " IPSTR, IP2STR(ip_addr));
+            replace_zeros_with_spaces(status_line_buffer[status_line_buffer_index], sizeof(status_line_buffer[status_line_buffer_index]));
             //ESP_LOGI(TAG, "WiFi connected, IP: " IPSTR, IP2STR(ip_addr));
             break;
         case 201: // WIFI_REASON_NO_AP_FOUND
-            memcpy(status_line_buffer, "STA: Invalid SSID", 17);
+            memcpy(status_line_buffer[status_line_buffer_index], "STA: Invalid SSID", 17);
             break;
         case 202: // WIFI_REASON_AUTH_FAIL
-            memcpy(status_line_buffer, "STA: Auth failed", 16);
+            memcpy(status_line_buffer[status_line_buffer_index], "STA: Auth failed", 16);
             break;
         default:
             char reason_buffer[4];
-            memcpy(status_line_buffer, "STA: disconn.", 13);
+            memcpy(status_line_buffer[status_line_buffer_index], "STA: disconn.", 13);
             siprintf(reason_buffer, "%3d", system_state.wifi_sta_connection_state);
-            memcpy(status_line_buffer + 15, reason_buffer, 3);
+            memcpy(status_line_buffer[status_line_buffer_index] + 15, reason_buffer, 3);
             break;
         }
     }
     else if (system_state.wifi_state == WIFI_STATE_NONE)
     {
-        memset(status_line_buffer, ' ', LCD_COLS);
-        memcpy(status_line_buffer, "Wifi: Not Set", 13);
+        memset(status_line_buffer[status_line_buffer_index], ' ', LCD_COLS);
+        memcpy(status_line_buffer[status_line_buffer_index], "Wifi: Not Set", 13);
+    }*/
+    if (system_state.wifi_state == WIFI_STATE_STA)
+    {
+        switch (system_state.wifi_sta_connection_state)
+        {
+        case 0:
+            esp_ip4_addr_t *ip_addr = &system_state.wifi_current_ip;
+            sniprintf(status_line_buffer[STATUS_LINE_STA_IP_VALUE], LCD_COLS, IPSTR, IP2STR(ip_addr));
+            replace_zeros_with_spaces(status_line_buffer[STATUS_LINE_STA_IP_VALUE], sizeof(status_line_buffer[STATUS_LINE_STA_IP_VALUE]));
+            // ESP_LOGI(TAG, "WiFi connected, IP: " IPSTR, IP2STR(ip_addr));
+            break;
+        case 201: // WIFI_REASON_NO_AP_FOUND
+            memcpy(status_line_buffer[STATUS_LINE_STA_IP_VALUE], "STA: Invalid SSID", 17);
+            break;
+        case 202: // WIFI_REASON_AUTH_FAIL
+            memcpy(status_line_buffer[STATUS_LINE_STA_IP_VALUE], "STA: Auth failed", 16);
+            break;
+        default:
+            memcpy(status_line_buffer[STATUS_LINE_STA_IP_VALUE], TLO("IP Not Set"));
+            char reason_buffer[4];
+            memcpy(status_line_buffer[STATUS_LINE_STA_IP_VALUE], "STA: disconn.", 13);
+            siprintf(reason_buffer, "%3d", system_state.wifi_sta_connection_state);
+            memcpy(status_line_buffer[STATUS_LINE_STA_IP_VALUE] + 15, reason_buffer, 3);
+            break;
+        }
     }
     next_render_requested = true; // Request a render update
 }
@@ -184,18 +231,19 @@ static void lcd_init_cycle(void)
 
 void lcd_initialize(void)
 {
-    memset(status_line_buffer, ' ', LCD_COLS);
-    memcpy(status_line_buffer, "Wifi: Init...", 13);
+    // memset(status_line_buffer, ' ', LCD_COLS);
+    // memcpy(status_line_buffer, "Wifi: Init...", 13);
+    lcd_status_line_init();
 
-    lcd_init_cycle(); // Initialize the LCD
+    lcd_init_cycle();
 
     lcd_render();
     lcd_render_cycle();
 
-    events_subscribe(EVENT_BUTTON_SHORT_PRESS, lcd_event_handler, NULL); // Subscribe to button short press event
-    events_subscribe(EVENT_BUTTON_LONG_PRESS, lcd_event_handler, NULL);  // Subscribe to button long press event
-    events_subscribe(EVENT_WIFI_STATE_CHANGED, lcd_event_handler, NULL); // Subscribe to WiFi connected event
-    events_subscribe(EVENT_RESTART_REQUESTED, lcd_event_handler, NULL); // Subscribe to restart requested event
+    events_subscribe(EVENT_BUTTON_SHORT_PRESS, lcd_event_handler, NULL);
+    events_subscribe(EVENT_BUTTON_LONG_PRESS, lcd_event_handler, NULL);
+    events_subscribe(EVENT_WIFI_STATE_CHANGED, lcd_event_handler, NULL);
+    events_subscribe(EVENT_RESTART_REQUESTED, lcd_event_handler, NULL);
 
     // Create LCD update task
     xTaskCreatePinnedToCore(lcd_update_task, "lcd_update_task", 4096, NULL, 5, NULL, 0);
@@ -203,37 +251,34 @@ void lcd_initialize(void)
 
 void lcd_set_screen_state(lcd_screen_state_t state)
 {
-    // Set the current screen state
     if (state < LCD_SCREEN_MAX)
     {
         lcd_screen_state = state;
     }
     else
     {
-        lcd_screen_state = LCD_SCREEN_TEMP_AND_STATUS; // Default to temperature and average screen
+        lcd_screen_state = LCD_SCREEN_TEMP_AND_STATUS;
     }
-    lcd_clear_buffer(); // Clear the buffer for the new screen
+    lcd_clear_buffer();
     next_render_requested = true;
 }
 
 void lcd_next_screen(void)
 {
-    // Cycle through the screens
     if (lcd_screen_state >= LCD_SCREEN_TEMP_AND_STATUS)
     {
         lcd_screen_state++;
     }
     if (lcd_screen_state >= LCD_SCREEN_MAX)
     {
-        lcd_screen_state = LCD_SCREEN_TEMP_AND_STATUS; // Loop back to the first screen
+        lcd_screen_state = LCD_SCREEN_TEMP_AND_STATUS;
     }
-    lcd_clear_buffer(); // Clear the buffer for the new screen
+    lcd_clear_buffer();
     next_render_requested = true;
 }
 
 lcd_screen_state_t lcd_get_screen_state(void)
 {
-    // Get the current screen state
     return lcd_screen_state;
 }
 
@@ -277,7 +322,6 @@ void lcd_write_character(char c)
 
 void lcd_write_text(const char *str)
 {
-    // Write a string to the buffer
     while (*str)
     {
         lcd_write_character(*str);
@@ -287,16 +331,14 @@ void lcd_write_text(const char *str)
 
 void lcd_write_buffer(const char *buffer, size_t size)
 {
-    // Write a buffer to the LCD
     for (size_t i = 0; i < size; i++)
     {
         lcd_write_character(buffer[i]);
     }
 }
 
-void lcd_copy_to_buffer(const char *data, size_t size, int8_t col, int8_t row)
+void lcd_copy_to_lcd_buffer(const char *data, size_t size, int8_t col, int8_t row)
 {
-    // Copy data to the LCD buffer at a specific position
     if (col < 0 || col >= LCD_COLS || row < 0 || row >= LCD_ROWS)
     {
         return;
@@ -311,7 +353,7 @@ void lcd_copy_to_buffer(const char *data, size_t size, int8_t col, int8_t row)
         lcd_buffer[row * LCD_COLS + col] = *data++;
         col++;
     }
-    lcd_set_cursor(col, row); // Update the cursor position
+    lcd_set_cursor(col, row);
 }
 
 void lcd_clear_buffer(void)
@@ -322,7 +364,6 @@ void lcd_clear_buffer(void)
 
 void lcd_render(void)
 {
-    // Render the buffer content to the LCD
     for (uint8_t row = 0; row < LCD_ROWS; row++)
     {
         lcd_set_cursor_position(0, row);
@@ -375,9 +416,9 @@ void lcd_render_cycle()
 {
     if (isRendering)
     {
-        return; // Prevent re-entrance
+        return;
     }
-    isRendering = true; // Set rendering flag
+    isRendering = true;
     switch (lcd_screen_state)
     {
     case LCD_SCREEN_SPLASH:
@@ -404,8 +445,8 @@ void lcd_render_cycle()
     default:
         break;
     }
-    lcd_render();        // Render the current screen
-    isRendering = false; // Clear rendering flag
+    lcd_render();
+    isRendering = false;
 }
 
 void lcd_splash_screen(void)
@@ -424,15 +465,15 @@ void lcd_splash_screen(void)
 
 void lcd_ap_mode_screen(void)
 {
+    // Display the AP mode screen on the LCD
     char *ap_ssid = system_state.ap_ssid;
     char *ap_pass = system_state.ap_pass;
 
-    // Display the AP mode screen on the LCD
     lcd_clear_buffer();
     lcd_set_cursor(0, 0);
     lcd_write_text(" AP Mode - SSID:");
-    lcd_copy_to_buffer(ap_ssid, 20, 0, 1);
-    lcd_copy_to_buffer(ap_pass, 20, 0, 2);
+    lcd_copy_to_lcd_buffer(ap_ssid, 20, 0, 1);
+    lcd_copy_to_lcd_buffer(ap_pass, 20, 0, 2);
     lcd_set_cursor(0, 3);
     lcd_write_text("IP: 192.168.4.1");
 }
@@ -449,7 +490,7 @@ void lcd_restarting_screen(void)
 
 void lcd_status_screen(int8_t index)
 {
-    // running_config_t *running_config = get_running_config(); // Get the running configuration
+
     //  Display the status screen on the LCD
     lcd_clear_buffer();
     lcd_set_cursor(0, 0);
@@ -459,26 +500,27 @@ void lcd_status_screen(int8_t index)
         lcd_write_text("  Wifi STA: ");
         lcd_set_cursor(0, 1);
         lcd_write_text("SSID:");
-        lcd_copy_to_buffer(system_state.sta_ssid, 15, 5, 1);
+        lcd_copy_to_lcd_buffer(system_state.sta_ssid, 15, 5, 1);
         lcd_set_cursor(0, 2);
         lcd_write_text("Pass:");
-        lcd_copy_to_buffer(system_state.sta_pass, 15, 5, 2);
+        lcd_copy_to_lcd_buffer(system_state.sta_pass, 15, 5, 2);
         lcd_set_cursor(0, 3);
         if (system_state.wifi_state == WIFI_STATE_AP)
         {
             lcd_write_text("Disabled");
         }
-        else {
+        else
+        {
             lcd_write_text("IP:");
             if (system_state.wifi_current_ip.addr == 0)
             {
-                lcd_copy_to_buffer("No IP", 5, 3, 3);
+                lcd_copy_to_lcd_buffer("No IP", 5, 3, 3);
             }
             else
             {
                 char ip_buffer[18];
                 sniprintf(ip_buffer, sizeof(ip_buffer), IPSTR, IP2STR(&system_state.wifi_current_ip));
-                lcd_copy_to_buffer(ip_buffer, 15, 3, 3);
+                lcd_copy_to_lcd_buffer(ip_buffer, 15, 3, 3);
             }
         }
         break;
@@ -486,10 +528,10 @@ void lcd_status_screen(int8_t index)
         lcd_write_text("  Wifi AP: ");
         lcd_set_cursor(0, 1);
         lcd_write_text("SSID:");
-        lcd_copy_to_buffer(system_state.ap_ssid, 15, 5, 1);
+        lcd_copy_to_lcd_buffer(system_state.ap_ssid, 15, 5, 1);
         lcd_set_cursor(0, 2);
         lcd_write_text("Pass:");
-        lcd_copy_to_buffer(system_state.ap_pass, 15, 5, 2);
+        lcd_copy_to_lcd_buffer(system_state.ap_pass, 15, 5, 2);
         lcd_set_cursor(0, 3);
         if (system_state.wifi_state == WIFI_STATE_STA)
         {
@@ -500,13 +542,13 @@ void lcd_status_screen(int8_t index)
             lcd_write_text("IP:");
             if (system_state.wifi_current_ip.addr == 0)
             {
-                lcd_copy_to_buffer("No IP", 5, 3, 3);
+                lcd_copy_to_lcd_buffer("No IP", 5, 3, 3);
             }
             else
             {
                 char ip_buffer[18];
                 sniprintf(ip_buffer, sizeof(ip_buffer), IPSTR, IP2STR(&system_state.wifi_current_ip));
-                lcd_copy_to_buffer(ip_buffer, 15, 3, 3);
+                lcd_copy_to_lcd_buffer(ip_buffer, 15, 3, 3);
             }
         }
         break;
@@ -518,10 +560,81 @@ void lcd_status_screen(int8_t index)
     }
 }
 
+void lcd_copy_to_any_buffer_with_max(char *buffer, size_t buffer_size, const char *data, size_t data_size)
+{
+    const char *position = strchr(data, '\0');
+    if (position != NULL)
+    {
+        data_size = position - data;
+    }
+    memccpy(buffer, data, 0, MIN(buffer_size, data_size));
+}
+
+void lcd_status_line_init(void)
+{
+    system_state_t *state = malloc(sizeof(system_state_t));
+    if (state == NULL)
+    {
+        ESP_LOGE(TAG, "Failed to allocate memory for system state");
+        return;
+    }
+    memcpy(state, &system_state, sizeof(system_state_t));
+    // Initialize the status line buffer
+    memset(status_line_buffer, ' ', sizeof(status_line_buffer));
+    memcpy(status_line_buffer[STATUS_LINE_STA_STATE], TLO("WiFi STA: Disabled"));
+    memcpy(status_line_buffer[STATUS_LINE_STA_SSID], TLO("WiFi STA SSID:"));
+    // memcpy(status_line_buffer[STATUS_LINE_STA_SSID_VALUE], TLO("SSID Not Set"));
+    memcpy(status_line_buffer[STATUS_LINE_STA_IP], TLO("WiFi STA IP Address:"));
+    memcpy(status_line_buffer[STATUS_LINE_STA_IP_VALUE], TLO("IP Not Set"));
+    memcpy(status_line_buffer[STATUS_LINE_AP_STATE], TLO("Wifi AP: Disabled"));
+    memcpy(status_line_buffer[STATUS_LINE_AP_SSID], TLO("AP SSID:"));
+    // memcpy(status_line_buffer[STATUS_LINE_AP_SSID_VALUE], TLO("SSID Not Set"));
+    memcpy(status_line_buffer[STATUS_LINE_AP_IP], TLO("WiFi AP IP Address:"));
+    memcpy(status_line_buffer[STATUS_LINE_AP_IP_VALUE], TLO("192.168.4.1"));
+    memcpy(status_line_buffer[STATUS_LINE_DEF_WIFI_STARTUP_MODE], TLO("Startup Mode:"));
+    memcpy(status_line_buffer[STATUS_LINE_DEF_SENSOR_MASK], TLO("Sensors:"));
+    status_line_buffer_index = 0;
+
+    // Update the status line with the current system state
+    lcd_copy_to_any_buffer_with_max(status_line_buffer[STATUS_LINE_STA_SSID_VALUE], LCD_COLS, state->sta_ssid, sizeof(state->sta_ssid));
+
+    lcd_copy_to_any_buffer_with_max(status_line_buffer[STATUS_LINE_AP_SSID_VALUE], LCD_COLS, state->ap_ssid, sizeof(state->ap_ssid));
+
+    if (state->wifi_startup_mode == WIFI_STARTUP_MODE_STA)
+    {
+        memcpy(status_line_buffer[STATUS_LINE_DEF_WIFI_STARTUP_MODE] + 14, TLO("STA"));
+    }
+    else
+    {
+        memcpy(status_line_buffer[STATUS_LINE_DEF_WIFI_STARTUP_MODE] + 14, TLO("AP"));
+    }
+
+    char sensor_mask_buffer[10] = {
+        [0] = '0',
+        [1] = 'b',
+        [2 ... 9] = '0',
+    };
+
+    for (int i = 0; i < 8; i++)
+    {
+        if (state->sensor_mask & (1 << i))
+        {
+            sensor_mask_buffer[9 - i] = '1';
+        }
+        else
+        {
+            sensor_mask_buffer[9 - i] = '0';
+        }
+    }
+    memcpy(status_line_buffer[STATUS_LINE_DEF_SENSOR_MASK] + 9, sensor_mask_buffer, sizeof(sensor_mask_buffer));
+
+    free(state);
+}
+
 void lcd_status_line(void)
 {
     // Display the status line on the LCD
-    memcpy(lcd_buffer + 3 * LCD_COLS, status_line_buffer, LCD_COLS);
+    memcpy(lcd_buffer + 3 * LCD_COLS, status_line_buffer[status_line_buffer_index], LCD_COLS);
 }
 
 void lcd_temperaure_screen(bool bottom_statistics)
@@ -531,20 +644,20 @@ void lcd_temperaure_screen(bool bottom_statistics)
 
     char bgBuffer[] = "T1:     C  T4:     C";
     lcd_set_cursor(0, 0);
-    lcd_copy_to_buffer(bgBuffer, strlen(bgBuffer), 0, 0);
+    lcd_copy_to_lcd_buffer(bgBuffer, strlen(bgBuffer), 0, 0);
     bgBuffer[1] = '2';
     bgBuffer[12] = '5';
     lcd_set_cursor(0, 1);
-    lcd_copy_to_buffer(bgBuffer, strlen(bgBuffer), 0, 1);
+    lcd_copy_to_lcd_buffer(bgBuffer, strlen(bgBuffer), 0, 1);
     bgBuffer[1] = '3';
     bgBuffer[12] = '6';
     lcd_set_cursor(0, 2);
-    lcd_copy_to_buffer(bgBuffer, strlen(bgBuffer), 0, 2);
+    lcd_copy_to_lcd_buffer(bgBuffer, strlen(bgBuffer), 0, 2);
     if (bottom_statistics)
     {
         static const char avgBuffer[] = "     C<     C<     C";
         lcd_set_cursor(0, 3);
-        lcd_copy_to_buffer(avgBuffer, strlen(avgBuffer), 0, 3);
+        lcd_copy_to_lcd_buffer(avgBuffer, strlen(avgBuffer), 0, 3);
     }
 
     char buffer[6] = {0};
@@ -595,6 +708,7 @@ void lcd_update_task(void *pvParameter)
 {
     const TickType_t frame_delay = pdMS_TO_TICKS(1000 / LCD_FPS);
     TickType_t last_render_tick = xTaskGetTickCount();
+    int lcd_status_line_counter = 0;
 
     for (;;)
     {
@@ -606,6 +720,11 @@ void lcd_update_task(void *pvParameter)
         }
         else if (xTaskGetTickCount() - last_render_tick >= frame_delay)
         {
+            if (++lcd_status_line_counter >= 5)
+            {
+                lcd_status_line_counter = 0;
+                status_line_buffer_index = (status_line_buffer_index + 1) % STATUS_LINE_MAX;
+            }
             last_render_tick = xTaskGetTickCount();
             lcd_render_cycle();
         }

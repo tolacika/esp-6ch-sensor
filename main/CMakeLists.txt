@@ -3,7 +3,7 @@ idf_component_register(SRCS "prototype_functions.c" "nvs_manager.c" "state_manag
     "prototype_functions.c"
     INCLUDE_DIRS ".")
 
-set(image_src ../default_files)
+set(image_src ../frontend/app2/dist)
 
 if(EXISTS ${image_src})
     message(STATUS "Image source directory exists, creating image...")

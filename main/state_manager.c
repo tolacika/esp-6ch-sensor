@@ -2,11 +2,8 @@
 #include "esp_log.h"
 #include "cJSON.h"
 
-bool test_file(const char *path);
-void test_files(void);
-void list_dir(const char *path);
-void print_file(const char *path);
 void log_system_state(void);
+void fatfs_test(void);
 
 const char *TAG = "state_manager";
 
@@ -39,6 +36,28 @@ const char *base_path = "/spiflash";
 
 static const char *config_file_path = "/spiflash/config.json";
 
+#define CHECK_FILE_EXTENSION(filename, ext) (strcasecmp(&filename[strlen(filename) - strlen(ext)], ext) == 0)
+
+/* Set HTTP response content type according to file extension */
+static esp_err_t send_content_type_from_file(httpd_req_t *req, const char *filepath)
+{
+    const char *type = "text/plain";
+    if (CHECK_FILE_EXTENSION(filepath, ".html")) {
+        type = "text/html";
+    } else if (CHECK_FILE_EXTENSION(filepath, ".js")) {
+        type = "application/javascript";
+    } else if (CHECK_FILE_EXTENSION(filepath, ".css")) {
+        type = "text/css";
+    } else if (CHECK_FILE_EXTENSION(filepath, ".png")) {
+        type = "image/png";
+    } else if (CHECK_FILE_EXTENSION(filepath, ".ico")) {
+        type = "image/x-icon";
+    } else if (CHECK_FILE_EXTENSION(filepath, ".svg")) {
+        type = "text/xml";
+    }
+    return httpd_resp_set_type(req, type);
+}
+
 void system_initialize(void)
 {
     memset(&system_state, 0, sizeof(system_state_t)); // Initialize system state to zero
@@ -66,9 +85,10 @@ void system_initialize(void)
         ESP_ERROR_CHECK(store_running_config_in_fatfs());
     }
 
+    fatfs_test();
+
     // Initialize NVS and read config
     nvs_initialize();
-    //    read_running_config();
 }
 
 void system_shutdown(void)
@@ -207,29 +227,6 @@ esp_err_t store_running_config_in_fatfs()
     return ESP_OK;
 }
 
-void store_running_config()
-{
-    ESP_LOGI(TAG, "Storing running config to NVS");
-
-    store_string(AP_SSID_KEY, system_state.ap_ssid);
-    ESP_LOGI(TAG, "Storing AP SSID: %s", system_state.ap_ssid);
-
-    store_string(STA_SSID_KEY, system_state.sta_ssid);
-    ESP_LOGI(TAG, "Storing STA SSID: %s", system_state.sta_ssid);
-
-    store_string(AP_PASS_KEY, system_state.ap_pass);
-    ESP_LOGI(TAG, "Storing AP Password: %s", system_state.ap_pass);
-
-    store_string(STA_PASS_KEY, system_state.sta_pass);
-    ESP_LOGI(TAG, "Storing STA Password: %s", system_state.sta_pass);
-
-    store_int(SENSOR_MASK_KEY, system_state.sensor_mask);
-    ESP_LOGI(TAG, "Storing Sensor Mask: %d", system_state.sensor_mask);
-
-    store_int(WIFI_STARTUP_MODE_KEY, system_state.wifi_startup_mode);
-    ESP_LOGI(TAG, "Stored running config to NVS successfully");
-}
-
 esp_err_t read_running_config_from_fatfs()
 {
     esp_err_t err = mount_fatfs();
@@ -302,168 +299,6 @@ esp_err_t read_running_config_from_fatfs()
     log_system_state();
 
     return ESP_OK;
-}
-
-void read_running_config()
-{
-    char *buffer;
-    size_t buffer_size = SSID_MAX_LEN;
-    buffer = calloc(buffer_size, sizeof(char));
-    if (buffer == NULL)
-    {
-        ESP_LOGE(TAG, "Failed to allocate memory for buffer");
-        return;
-    }
-    esp_err_t err = read_string(AP_SSID_KEY, buffer, &buffer_size);
-    if (err == ESP_OK)
-    {
-        if (buffer[0] == 0)
-        {
-            ESP_LOGI(TAG, "AP SSID found, but empty. Using default: %s", CONFIG_DEFAULT_AP_SSID);
-            strlcpy(system_state.ap_ssid, CONFIG_DEFAULT_AP_SSID, sizeof(system_state.ap_ssid));
-        }
-        else
-        {
-            ESP_LOGI(TAG, "AP SSID found: %s", buffer);
-            strlcpy(system_state.ap_ssid, buffer, sizeof(system_state.ap_ssid));
-        }
-    }
-    else if (err == ESP_ERR_NVS_NOT_FOUND)
-    {
-        ESP_LOGI(TAG, "AP SSID not found, using default: %s", CONFIG_DEFAULT_AP_SSID);
-        strlcpy(system_state.ap_ssid, CONFIG_DEFAULT_AP_SSID, sizeof(system_state.ap_ssid));
-    }
-    else
-    {
-        ESP_LOGE(TAG, "Error reading AP SSID: %s", esp_err_to_name(err));
-    }
-
-    buffer_size = SSID_MAX_LEN;
-    memset(buffer, 0, buffer_size);
-
-    err = read_string(STA_SSID_KEY, buffer, &buffer_size);
-    if (err == ESP_OK)
-    {
-        if (buffer[0] == 0)
-        {
-            ESP_LOGI(TAG, "STA SSID found, but empty. Using default: %s", CONFIG_DEFAULT_STA_SSID);
-            strlcpy(system_state.sta_ssid, CONFIG_DEFAULT_STA_SSID, sizeof(system_state.sta_ssid));
-        }
-        else
-        {
-            ESP_LOGI(TAG, "STA SSID found: %s", buffer);
-            strlcpy(system_state.sta_ssid, buffer, sizeof(system_state.sta_ssid));
-        }
-    }
-    else if (err == ESP_ERR_NVS_NOT_FOUND)
-    {
-        ESP_LOGI(TAG, "STA SSID not found, using default: %s", CONFIG_DEFAULT_STA_SSID);
-        strlcpy(system_state.sta_ssid, CONFIG_DEFAULT_STA_SSID, sizeof(system_state.sta_ssid));
-    }
-    else
-    {
-        ESP_LOGE(TAG, "Error reading STA SSID: %s", esp_err_to_name(err));
-    }
-
-    free(buffer);
-    buffer_size = PASS_MAX_LEN;
-    buffer = calloc(buffer_size, sizeof(char));
-    if (buffer == NULL)
-    {
-        ESP_LOGE(TAG, "Failed to allocate memory for buffer");
-        return;
-    }
-
-    err = read_string(AP_PASS_KEY, buffer, &buffer_size);
-    if (err == ESP_OK)
-    {
-        if (buffer[0] == 0)
-        {
-            ESP_LOGI(TAG, "AP Password found, but empty. Using default: %s", CONFIG_DEFAULT_AP_PASSWORD);
-            strlcpy(system_state.ap_pass, CONFIG_DEFAULT_AP_PASSWORD, sizeof(system_state.ap_pass));
-        }
-        else
-        {
-            ESP_LOGI(TAG, "AP Password found: %s", buffer);
-            strlcpy(system_state.ap_pass, buffer, sizeof(system_state.ap_pass));
-        }
-    }
-    else if (err == ESP_ERR_NVS_NOT_FOUND)
-    {
-        ESP_LOGI(TAG, "AP Password not found, using default: %s", CONFIG_DEFAULT_AP_PASSWORD);
-        strlcpy(system_state.ap_pass, CONFIG_DEFAULT_AP_PASSWORD, sizeof(system_state.ap_pass));
-    }
-    else
-    {
-        ESP_LOGE(TAG, "Error reading AP Password: %s", esp_err_to_name(err));
-    }
-
-    buffer_size = PASS_MAX_LEN;
-    memset(buffer, 0, buffer_size);
-    err = read_string(STA_PASS_KEY, buffer, &buffer_size);
-    if (err == ESP_OK)
-    {
-        if (buffer[0] == 0)
-        {
-            ESP_LOGI(TAG, "STA Password found, but empty. Using default: %s", CONFIG_DEFAULT_STA_PASSWORD);
-            strlcpy(system_state.sta_pass, CONFIG_DEFAULT_STA_PASSWORD, sizeof(system_state.sta_pass));
-        }
-        else
-        {
-            ESP_LOGI(TAG, "STA Password found: %s", buffer);
-            strlcpy(system_state.sta_pass, buffer, sizeof(system_state.sta_pass));
-        }
-    }
-    else if (err == ESP_ERR_NVS_NOT_FOUND)
-    {
-        ESP_LOGI(TAG, "STA Password not found, using default: %s", CONFIG_DEFAULT_STA_PASSWORD);
-        strlcpy(system_state.sta_pass, CONFIG_DEFAULT_STA_PASSWORD, sizeof(system_state.sta_pass));
-    }
-    else
-    {
-        ESP_LOGE(TAG, "Error reading STA Password: %s", esp_err_to_name(err));
-    }
-    free(buffer); // Free buffer after use
-
-    int32_t buffer_int = 0;
-    err = read_int(SENSOR_MASK_KEY, &buffer_int);
-    if (err == ESP_OK)
-    {
-        ESP_LOGI(TAG, "Sensor Mask found: %ld", buffer_int);
-        system_state.sensor_mask = buffer_int;
-    }
-    else if (err == ESP_ERR_NVS_NOT_FOUND)
-    {
-        ESP_LOGI(TAG, "Sensor Mask not found, using default: %d", 0b00111111);
-        system_state.sensor_mask = 0b00111111;
-    }
-    else
-    {
-        ESP_LOGE(TAG, "Error reading Sensor Mask: %s", esp_err_to_name(err));
-    }
-
-    err = read_int(WIFI_STARTUP_MODE_KEY, &buffer_int);
-    if (err == ESP_OK)
-    {
-        ESP_LOGI(TAG, "WiFi Startup Mode found: %ld", buffer_int);
-        system_state.wifi_startup_mode = buffer_int;
-    }
-    else if (err == ESP_ERR_NVS_NOT_FOUND)
-    {
-        ESP_LOGI(TAG, "WiFi Startup Mode not found, using default: %d", WIFI_STARTUP_MODE_AP);
-        system_state.wifi_startup_mode = WIFI_STARTUP_MODE_AP;
-    }
-    else
-    {
-        ESP_LOGE(TAG, "Error reading WiFi Startup Mode: %s", esp_err_to_name(err));
-    }
-    // Validate startup mode
-    if (system_state.wifi_startup_mode != WIFI_STARTUP_MODE_STA &&
-        system_state.wifi_startup_mode != WIFI_STARTUP_MODE_AP)
-    {
-        ESP_LOGE(TAG, "Invalid WiFi Startup Mode: %d. Setting to default: %d", system_state.wifi_startup_mode, WIFI_STARTUP_MODE_AP);
-        system_state.wifi_startup_mode = WIFI_STARTUP_MODE_AP;
-    }
 }
 
 static void application_task(void *args)
@@ -539,11 +374,48 @@ void events_subscribe(int32_t event_id, esp_event_handler_t event_handler, void 
     }
 }
 
-esp_err_t send_file_from_fatfs(httpd_req_t *req, const char *file_path, const char *content_type)
+esp_err_t file_exists_in_fatfs(const char *file_path)
+{
+    ESP_LOGI(TAG, "Checking if file exists: %s", file_path);
+
+    char filename[256];
+    if (file_path[0] == '/')
+    {
+        snprintf(filename, sizeof(filename), "%s%s", base_path, file_path);
+    }
+    else
+    {
+        snprintf(filename, sizeof(filename), "%s/%s", base_path, file_path);
+    }
+    ESP_LOGI(TAG, "Full file path: %s", filename);
+
+    esp_err_t err = mount_fatfs();
+    if (err != ESP_OK)
+    {
+        ESP_LOGE(TAG, "Failed to mount FATFS: %s", esp_err_to_name(err));
+        ESP_ERROR_CHECK_WITHOUT_ABORT(unmount_fatfs());
+        return ESP_FAIL;
+    }
+    ESP_LOGI(TAG, "FATFS mounted successfully");
+
+    FILE *fd = fopen(filename, "rb");
+    if (fd == NULL)
+    {
+        ESP_LOGE(TAG, "File does not exist: %s", esp_err_to_name(errno));
+        ESP_ERROR_CHECK_WITHOUT_ABORT(unmount_fatfs());
+        return ESP_FAIL;
+    }
+    fclose(fd);
+    ESP_ERROR_CHECK_WITHOUT_ABORT(unmount_fatfs());
+
+    return ESP_OK;
+}
+
+esp_err_t send_file_from_fatfs(httpd_req_t *req, const char *file_path)
 {
     ESP_LOGI(TAG, "Serving file: %s", file_path);
 
-    char filename[128];
+    char filename[256];
     if (file_path[0] == '/')
     {
         snprintf(filename, sizeof(filename), "%s%s", base_path, file_path);
@@ -571,7 +443,18 @@ esp_err_t send_file_from_fatfs(httpd_req_t *req, const char *file_path, const ch
         return ESP_FAIL;
     }
     ESP_LOGI(TAG, "File opened successfully");
-    httpd_resp_set_type(req, content_type);
+    
+    // Set the content type based on the file extension
+    esp_err_t err_type = send_content_type_from_file(req, file_path);
+    if (err_type != ESP_OK)
+    {
+        ESP_LOGE(TAG, "Failed to set content type: %s", esp_err_to_name(err_type));
+        fclose(fd);
+        ESP_ERROR_CHECK_WITHOUT_ABORT(unmount_fatfs());
+        return err_type;
+    }
+    ESP_LOGI(TAG, "Content type set successfully");
+
     char *buffer = calloc(1, SCRATCH_BUFSIZE);
     if (buffer == NULL)
     {
@@ -609,8 +492,86 @@ esp_err_t send_file_from_fatfs(httpd_req_t *req, const char *file_path, const ch
     return ESP_OK;
 }
 
-/*void fatfs_init(void)
+void list_directory(const char *path)
 {
+    ESP_LOGI(TAG, "Listing directory: %s", path);
+
+    DIR *dir = opendir(path);
+    if (dir == NULL)
+    {
+        ESP_LOGE(TAG, "Failed to open directory: %s", esp_err_to_name(errno));
+        ESP_ERROR_CHECK_WITHOUT_ABORT(unmount_fatfs());
+        return;
+    }
+    struct dirent *entry;
+    while ((entry = readdir(dir)) != NULL)
+    {
+        ESP_LOGI(TAG, "Found file: %s, Type: %d, %s", entry->d_name, entry->d_type, 
+                 (entry->d_type == DT_DIR) ? "Directory" : "File");
+    }
+    closedir(dir);
+}
+
+void fatfs_test(void)
+{
+    ESP_LOGI(TAG, "Testing FAT filesystem with listing files recursively");
+    ESP_LOGI(TAG, "Mounting FAT filesystem");
+    esp_err_t err = mount_fatfs();
+    if (err != ESP_OK)
+    {
+        ESP_LOGE(TAG, "Failed to mount FATFS: %s", esp_err_to_name(err));
+        return;
+    }
+    ESP_LOGI(TAG, "FATFS mounted successfully");
+    ESP_LOGI(TAG, "Listing files in FATFS");
+
+    // List files in the FATFS
+    list_directory(base_path);
+    //list_directory("/spiflash/assets");
+
+    ESP_LOGI(TAG, "Unmounting FAT filesystem");
+    err = unmount_fatfs();
+    if (err != ESP_OK)
+    {
+        ESP_LOGE(TAG, "Failed to unmount FATFS: %s", esp_err_to_name(err));
+        return;
+    }
+    ESP_LOGI(TAG, "FATFS unmounted successfully");
+    ESP_LOGI(TAG, "FATFS test completed");
+}
+
+static TimerHandle_t unmount_timer = NULL;
+
+static void unmount_timer_callback(TimerHandle_t xTimer)
+{
+    ESP_LOGI(TAG, "Unmount timer expired, unmounting FATFS");
+    if (s_wl_handle != WL_INVALID_HANDLE)
+    {
+        esp_err_t err = esp_vfs_fat_spiflash_unmount_rw_wl(base_path, s_wl_handle);
+        s_wl_handle = WL_INVALID_HANDLE;
+        if (err != ESP_OK)
+        {
+            ESP_LOGE(TAG, "Failed to unmount FATFS in timer callback (%s)", esp_err_to_name(err));
+        }
+        else
+        {
+            ESP_LOGI(TAG, "FATFS unmounted successfully in timer callback");
+        }
+    }
+}
+
+esp_err_t mount_fatfs(void)
+{
+    if (s_wl_handle != WL_INVALID_HANDLE)
+    {
+        ESP_LOGI(TAG, "FATFS already mounted, disabling unmount timer");
+        if (unmount_timer != NULL)
+        {
+            xTimerStop(unmount_timer, 0);
+        }
+        return ESP_OK;
+    }
+
     ESP_LOGI(TAG, "Mounting FAT filesystem");
     const esp_vfs_fat_mount_config_t mount_config = {
         .max_files = 4,
@@ -619,73 +580,40 @@ esp_err_t send_file_from_fatfs(httpd_req_t *req, const char *file_path, const ch
         .use_one_fat = false,
     };
     esp_err_t ret = esp_vfs_fat_spiflash_mount_rw_wl(base_path, "storage", &mount_config, &s_wl_handle);
-    if (ret != ESP_OK) {
-        if (ret == ESP_FAIL) {
-            ESP_LOGE(TAG, "Failed to mount or format filesystem");
-        } else if (ret == ESP_ERR_NOT_FOUND) {
-            ESP_LOGE(TAG, "Failed to find FATFS partition");
-        } else {
-            ESP_LOGE(TAG, "Failed to initialize FATFS (%s)", esp_err_to_name(ret));
-        }
-        return;
-    }
-    ESP_LOGI(TAG, "FATFS mounted successfully at %s", base_path);
-
-    test_files();
-    list_dir(base_path);
-}*/
-
-esp_err_t mount_fatfs(void)
-{
-    // Take the mutex
-    if (xSemaphoreTake(fatfs_mutex, pdMS_TO_TICKS(20000)) != pdTRUE)
-    {
-        ESP_LOGE(TAG, "Failed to take FATFS mutex");
-        return ESP_ERR_TIMEOUT;
-    }
-
-    ESP_LOGI(TAG, "Mounting FAT filesystem");
-    const esp_vfs_fat_mount_config_t mount_config = {
-        .max_files = 4,
-        .format_if_mount_failed = false, // Set to true if you want to auto-format on failure
-        .allocation_unit_size = CONFIG_WL_SECTOR_SIZE,
-        .use_one_fat = false,
-    };
-    esp_err_t ret = esp_vfs_fat_spiflash_mount_rw_wl(base_path, "storage", &mount_config, &s_wl_handle);
     if (ret != ESP_OK)
     {
-        if (ret == ESP_FAIL)
-        {
-            ESP_LOGE(TAG, "Failed to mount or format filesystem");
-        }
-        else if (ret == ESP_ERR_NOT_FOUND)
-        {
-            ESP_LOGE(TAG, "Failed to find FATFS partition");
-        }
-        else
-        {
-            ESP_LOGE(TAG, "Failed to initialize FATFS (%s)", esp_err_to_name(ret));
-        }
-        // Release the mutex on failure
-        xSemaphoreGive(fatfs_mutex);
+        ESP_LOGE(TAG, "Failed to mount FATFS (%s)", esp_err_to_name(ret));
         return ret;
     }
+
     ESP_LOGI(TAG, "FATFS mounted successfully at %s", base_path);
-    return ESP_OK; // Mutex will be released after the corresponding unmount
+    return ESP_OK;
 }
 
 esp_err_t unmount_fatfs(void)
 {
-    ESP_LOGI(TAG, "Unmounting FAT filesystem");
-
-    esp_err_t err = esp_vfs_fat_spiflash_unmount_rw_wl(base_path, s_wl_handle);
-    s_wl_handle = WL_INVALID_HANDLE; // Mark handle as invalid
-    if (err != ESP_OK)
+    if (s_wl_handle == WL_INVALID_HANDLE)
     {
-        ESP_LOGE(TAG, "Failed to unmount FATFS (%s)", esp_err_to_name(err));
+        ESP_LOGI(TAG, "FATFS already unmounted");
+        return ESP_OK;
     }
 
-    // Release the mutex
-    xSemaphoreGive(fatfs_mutex);
-    return err;
+    if (unmount_timer == NULL)
+    {
+        unmount_timer = xTimerCreate("UnmountTimer", pdMS_TO_TICKS(2000), pdFALSE, NULL, unmount_timer_callback);
+        if (unmount_timer == NULL)
+        {
+            ESP_LOGE(TAG, "Failed to create unmount timer");
+            return ESP_FAIL;
+        }
+    }
+
+    ESP_LOGI(TAG, "Starting unmount timer for 2000 ms");
+    if (xTimerStart(unmount_timer, 0) != pdPASS)
+    {
+        ESP_LOGE(TAG, "Failed to start unmount timer");
+        return ESP_FAIL;
+    }
+
+    return ESP_OK;
 }
