@@ -43,13 +43,29 @@ typedef enum {
     LCD_SCREEN_SPLASH = 0,
     LCD_SCREEN_AP_MODE,
     LCD_SCREEN_RESTARTING,
+#ifdef STATUS_LINE_ENABLED
     LCD_SCREEN_TEMP_AND_STATUS,
     LCD_SCREEN_TEMP_AND_AVG,
+#else
+    LCD_SCREEN_TEMPERATURE,
+#endif
     LCD_SCREEN_STATUS_1,
     LCD_SCREEN_STATUS_2,
     LCD_SCREEN_STATUS_3,
     LCD_SCREEN_MAX
 } lcd_screen_state_t;
+
+#ifdef STATUS_LINE_ENABLED
+#define LCD_SCREEN_START_SCREEN LCD_SCREEN_TEMP_AND_STATUS
+#else
+#define LCD_SCREEN_START_SCREEN LCD_SCREEN_TEMPERATURE
+#endif
+
+typedef enum {
+    LCD_BOTTOM_STAT_AVG = 0,
+    LCD_BOTTOM_STAT_STATUS,
+    LCD_BOTTOM_STAT_NONE
+} lcd_bottom_stat_t;
 
 // Initialize the I2C master.
 void i2c_initialize(void);
@@ -91,13 +107,15 @@ void lcd_format_temperature(float temp, char *buffer, size_t buffer_size);
 void lcd_render_cycle(void);
 
 // Display an array of temperatures on the LCD.
-void lcd_temperaure_screen(bool bottom_statistics);
+void lcd_temperaure_screen(lcd_bottom_stat_t bottom_statistics);
 
+#ifdef STATUS_LINE_ENABLED
 // Display the status line on the LCD.
 void lcd_status_line(void);
 
 // Initialize the status line buffer.
 void lcd_status_line_init(void);
+#endif
 
 // Display a list of status messages on the LCD.
 void lcd_status_screen(int8_t index);

@@ -1,6 +1,24 @@
 #ifndef CONFIG_H
 #define CONFIG_H
 
+// same as ADC_CHANNEL_8
+#define SENSOR_MAX_COUNT 8
+
+#ifdef CONFIG_IDF_TARGET_ESP32S3
+    #define LCD_8_SENSORS
+    // All sensors enabled
+    #define LCD_SENSOR_DISPLAY_MASK 0xFF
+    #define SENSOR_COUNT 8
+    #define SENSOR_COUNT_PER_COLUMN 4
+#elif defined(CONFIG_IDF_TARGET_ESP32)
+    #define LCD_6_SENSORS
+    #define STATUS_LINE_ENABLED
+    // Channel 1 and 2 are unavailable, so mask is 11111001
+    #define LCD_SENSOR_DISPLAY_MASK 0xF9
+    #define SENSOR_COUNT 6
+    #define SENSOR_COUNT_PER_COLUMN 3
+#endif
+
 #define SSID_MAX_LEN 32
 #define PASS_MAX_LEN 64
 
@@ -10,7 +28,6 @@
 #define STA_PASS_KEY "sp"
 #define SENSOR_MASK_KEY "sm"
 #define WIFI_STARTUP_MODE_KEY "wm"
-
 
 // Button config
 #define BUTTON_GPIO GPIO_NUM_0  // IO0 button

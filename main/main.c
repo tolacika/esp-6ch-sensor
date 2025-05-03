@@ -52,7 +52,7 @@ void app_main(void)
 
     vTaskDelay(pdMS_TO_TICKS(3000));
 
-    lcd_set_screen_state(LCD_SCREEN_TEMP_AND_STATUS);
+    lcd_set_screen_state(LCD_SCREEN_START_SCREEN);
 
     wifi_connect();
 

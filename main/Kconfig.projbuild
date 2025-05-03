@@ -42,16 +42,5 @@ menu "Application settings"
 
     endchoice
 
-    config DEFAULT_SENSOR_MASK
-        int "Default sensor bitmask"
-        default 63
-        help
-            Default sensor bitmask for the device. This is a bitmask
-            representing the sensors that are enabled. For example,
-            if you want to enable sensors 0, 1, and 2, set this to 7
-            (binary 0b00000111). The maximum value is 63 (binary 0b00111111).
-            The bitmask is used to determine which sensors are enabled
-            and which are disabled.
-
 endmenu
 

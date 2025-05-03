@@ -54,7 +54,7 @@ typedef struct
     char ap_pass[PASS_MAX_LEN];
     char sta_ssid[SSID_MAX_LEN];
     char sta_pass[PASS_MAX_LEN];
-    int8_t sensor_mask;
+    uint8_t sensor_mask;
     wifi_mode_enum wifi_startup_mode;
 } system_state_t;
 

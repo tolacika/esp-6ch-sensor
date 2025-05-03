@@ -7,14 +7,7 @@
 #include "freertos/FreeRTOS.h"
 #include "driver/gpio.h" // Include for GPIO functionality
 #include "config.h"
-
-// ADC channel definitions
-#define ADC_USED_CHANNEL_1  ADC_CHANNEL_0  // ADC1 Channel 0
-#define ADC_USED_CHANNEL_2  ADC_CHANNEL_3  // ADC1 Channel 3
-#define ADC_USED_CHANNEL_3  ADC_CHANNEL_6  // ADC1 Channel 6
-#define ADC_USED_CHANNEL_4  ADC_CHANNEL_7  // ADC1 Channel 7
-#define ADC_USED_CHANNEL_5  ADC_CHANNEL_4  // ADC1 Channel 4
-#define ADC_USED_CHANNEL_6  ADC_CHANNEL_5  // ADC1 Channel 5
+#include "state_manager.h"
 
 // Constants for NTC thermistor calculations
 #define R_FIXED 10000.0            // 10kΩ fixed resistor
@@ -54,14 +47,14 @@ void ntc_adc_process_data();
  * @param channel_index Index of the channel (0-5).
  * @return ADC data for the channel, or -1 on error.
  */
-int ntc_get_channel_data(int channel_index);
+uint16_t ntc_get_channel_data(uint8_t channel_index);
 
 /**
  * @brief Convert raw ADC value to temperature in Celsius.
  * @param adc_raw Raw ADC value.
  * @return Temperature in Celsius.
  */
-float ntc_adc_raw_to_temperature(int adc_raw);
+float ntc_adc_raw_to_temperature(uint16_t adc_raw);
 
 /**
  * @brief Task to start ADC and process temperature data.

@@ -1,31 +1,34 @@
 #include "ntc_adc.h"
+#include "esp_log.h"
+
+static const char *TAG = "ntc_adc";
 
 // Static variables for ADC handle and mutex
 static adc_continuous_handle_t adc_handle;
 static SemaphoreHandle_t channel_data_mutex;
 
 // Array to store ADC channel data
-static int channel_data[6] = {0, 0, 0, 0, 0, 0};
+static uint16_t channel_data[SENSOR_MAX_COUNT] = {0};
 
 // Retrieve ADC data for a specific channel
-int ntc_get_channel_data(int channel_index)
+uint16_t ntc_get_channel_data(uint8_t channel_index)
 {
-    if (channel_index < 0 || channel_index >= 6)
+    if (channel_index >= SENSOR_MAX_COUNT)
     {
-        return -1; // Invalid channel index
+        return 0; // Invalid channel index
     }
 
     if (xSemaphoreTake(channel_data_mutex, portMAX_DELAY))
     {
-        int sample = channel_data[channel_index];
+        uint16_t sample = channel_data[channel_index];
         xSemaphoreGive(channel_data_mutex);
         return sample;
     }
-    return -1; // Failed to take mutex
+    return 0; // Failed to take mutex
 }
 
 // Convert raw ADC value to temperature in Celsius
-float ntc_adc_raw_to_temperature(int adc_raw)
+float ntc_adc_raw_to_temperature(uint16_t adc_raw)
 {
     // Convert ADC value to voltage (12-bit ADC, 0 dB attenuation = 0–1.1V range)
     float voltage_mv = (adc_raw * 1100) / 4095.0; // Convert to mV
@@ -73,15 +76,22 @@ esp_err_t ntc_adc_initialize()
         .format = ADC_DIGI_OUTPUT_FORMAT_TYPE1,
     };
 
-    adc_digi_pattern_config_t patterns[6] = {
-        {.atten = ADC_ATTEN_DB_0, .channel = ADC_USED_CHANNEL_1, .unit = ADC_UNIT_1, .bit_width = ADC_BITWIDTH_12},
-        {.atten = ADC_ATTEN_DB_0, .channel = ADC_USED_CHANNEL_2, .unit = ADC_UNIT_1, .bit_width = ADC_BITWIDTH_12},
-        {.atten = ADC_ATTEN_DB_0, .channel = ADC_USED_CHANNEL_3, .unit = ADC_UNIT_1, .bit_width = ADC_BITWIDTH_12},
-        {.atten = ADC_ATTEN_DB_0, .channel = ADC_USED_CHANNEL_4, .unit = ADC_UNIT_1, .bit_width = ADC_BITWIDTH_12},
-        {.atten = ADC_ATTEN_DB_0, .channel = ADC_USED_CHANNEL_5, .unit = ADC_UNIT_1, .bit_width = ADC_BITWIDTH_12},
-        {.atten = ADC_ATTEN_DB_0, .channel = ADC_USED_CHANNEL_6, .unit = ADC_UNIT_1, .bit_width = ADC_BITWIDTH_12}};
-
-    channel_config.pattern_num = 6;
+    int pI = 0;
+    adc_digi_pattern_config_t patterns[8] = {0};
+    for (int i = 0; i < 8; i++)
+    {
+        if (system_state.sensor_mask & (1 << i)) // & LCD_SENSOR_DISPLAY_MASK
+        {
+            ESP_LOGI(TAG, "Initializing ADC channel %d - Pattern: %d", i, pI);
+            // Add channel to the configuration
+            patterns[pI].atten = ADC_ATTEN_DB_0;
+            patterns[pI].channel = i;
+            patterns[pI].unit = ADC_UNIT_1;
+            patterns[pI].bit_width = ADC_BITWIDTH_12;
+            pI++;
+        }
+    }
+    channel_config.pattern_num = pI;
     channel_config.adc_pattern = patterns;
 
     ESP_ERROR_CHECK(adc_continuous_config(adc_handle, &channel_config));
@@ -120,37 +130,14 @@ void ntc_adc_process_data()
             for (int i = 0; i < read_size; i += sizeof(adc_digi_output_data_t))
             {
                 data = (adc_digi_output_data_t *)&buffer[i];
-                if (data->type1.channel >= 8)
+                if (data->type1.channel >= SENSOR_MAX_COUNT)
                 {
                     continue; // Skip invalid channels
                 }
-                int index = 0;
-                switch (data->type1.channel)
-                {
-                case ADC_USED_CHANNEL_1:
-                    index = 0;
-                    break;
-                case ADC_USED_CHANNEL_2:
-                    index = 1;
-                    break;
-                case ADC_USED_CHANNEL_3:
-                    index = 2;
-                    break;
-                case ADC_USED_CHANNEL_4:
-                    index = 3;
-                    break;
-                case ADC_USED_CHANNEL_5:
-                    index = 4;
-                    break;
-                case ADC_USED_CHANNEL_6:
-                    index = 5;
-                    break;
-                default:
-                    continue;
-                }
+                
                 if (xSemaphoreTake(channel_data_mutex, portMAX_DELAY))
                 {
-                    channel_data[index] = data->type1.data;
+                    channel_data[data->type1.channel] = data->type1.data;
                     xSemaphoreGive(channel_data_mutex);
                 }
             }

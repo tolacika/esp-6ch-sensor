@@ -69,13 +69,15 @@ void system_initialize(void)
         return;
     }
 
-    system_state_t *state = calloc(1, sizeof(system_state_t));
+    fatfs_test();
+
+    /*system_state_t *state = calloc(1, sizeof(system_state_t));
     if (state == NULL)
     {
         ESP_LOGE(TAG, "Failed to allocate memory for system_state_t");
         return;
     }
-    memcpy(state, &system_state, sizeof(system_state_t));
+    memcpy(state, &system_state, sizeof(system_state_t));*/
 
     esp_err_t err = read_running_config_from_fatfs();
     if (err != ESP_OK)
@@ -84,8 +86,6 @@ void system_initialize(void)
         load_default_running_config();
         ESP_ERROR_CHECK(store_running_config_in_fatfs());
     }
-
-    fatfs_test();
 
     // Initialize NVS and read config
     nvs_initialize();
@@ -146,7 +146,15 @@ esp_err_t load_default_running_config()
     snprintf(system_state.ap_pass, sizeof(system_state.ap_pass), CONFIG_DEFAULT_AP_PASSWORD);
     snprintf(system_state.sta_ssid, sizeof(system_state.sta_ssid), CONFIG_DEFAULT_STA_SSID);
     snprintf(system_state.sta_pass, sizeof(system_state.sta_pass), CONFIG_DEFAULT_STA_PASSWORD);
-    system_state.sensor_mask = CONFIG_DEFAULT_SENSOR_MASK;
+#ifdef LCD_6_SENSORS
+    // Channels 1 and 2 are unavailable, so mask is 11111001
+    system_state.sensor_mask = 0xF9; // All sensors enabled except 1 and 2
+#elif defined(LCD_8_SENSORS)
+    system_state.sensor_mask = 0xFF; // All sensors enabled
+#else
+    system_state.sensor_mask = 0;
+#endif
+
 #ifdef CONFIG_DEFAULT_WIFI_STARTUP_MODE_STA
     system_state.wifi_startup_mode = WIFI_STARTUP_MODE_STA;
 #else

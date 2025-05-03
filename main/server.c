@@ -223,6 +223,14 @@ static esp_err_t config_http_handler(httpd_req_t *req)
     cJSON_AddStringToObject(root, "sta_pass", system_state.sta_pass);
     cJSON_AddNumberToObject(root, "sensor_mask", system_state.sensor_mask);
 
+#ifdef CONFIG_IDF_TARGET_ESP32
+    cJSON_AddStringToObject(root, "target", "ESP32");
+#elif defined(CONFIG_IDF_TARGET_ESP32S3)
+    cJSON_AddStringToObject(root, "target", "ESP32S3");
+#else
+    cJSON_AddStringToObject(root, "target", "Other");
+#endif
+
     return send_ok_response(req, cJSON_Print(root));
 }
 

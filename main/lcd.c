@@ -233,7 +233,9 @@ void lcd_initialize(void)
 {
     // memset(status_line_buffer, ' ', LCD_COLS);
     // memcpy(status_line_buffer, "Wifi: Init...", 13);
+#ifdef STATUS_LINE_ENABLED
     lcd_status_line_init();
+#endif
 
     lcd_init_cycle();
 
@@ -257,7 +259,7 @@ void lcd_set_screen_state(lcd_screen_state_t state)
     }
     else
     {
-        lcd_screen_state = LCD_SCREEN_TEMP_AND_STATUS;
+        lcd_screen_state = LCD_SCREEN_START_SCREEN;
     }
     lcd_clear_buffer();
     next_render_requested = true;
@@ -265,13 +267,13 @@ void lcd_set_screen_state(lcd_screen_state_t state)
 
 void lcd_next_screen(void)
 {
-    if (lcd_screen_state >= LCD_SCREEN_TEMP_AND_STATUS)
+    if (lcd_screen_state >= LCD_SCREEN_START_SCREEN)
     {
         lcd_screen_state++;
     }
     if (lcd_screen_state >= LCD_SCREEN_MAX)
     {
-        lcd_screen_state = LCD_SCREEN_TEMP_AND_STATUS;
+        lcd_screen_state = LCD_SCREEN_START_SCREEN;
     }
     lcd_clear_buffer();
     next_render_requested = true;
@@ -430,13 +432,19 @@ void lcd_render_cycle()
     case LCD_SCREEN_RESTARTING:
         lcd_restarting_screen();
         break;
+#ifdef STATUS_LINE_ENABLED
     case LCD_SCREEN_TEMP_AND_AVG:
-        lcd_temperaure_screen(true);
+        lcd_temperaure_screen(LCD_BOTTOM_STAT_AVG);
         break;
     case LCD_SCREEN_TEMP_AND_STATUS:
-        lcd_temperaure_screen(false);
+        lcd_temperaure_screen(LCD_BOTTOM_STAT_STATUS);
         lcd_status_line();
         break;
+#else
+    case LCD_SCREEN_TEMPERATURE:
+        lcd_temperaure_screen(LCD_BOTTOM_STAT_NONE);
+        break;
+#endif
     case LCD_SCREEN_STATUS_1:
     case LCD_SCREEN_STATUS_2:
     case LCD_SCREEN_STATUS_3:
@@ -570,6 +578,7 @@ void lcd_copy_to_any_buffer_with_max(char *buffer, size_t buffer_size, const cha
     memccpy(buffer, data, 0, MIN(buffer_size, data_size));
 }
 
+#ifdef STATUS_LINE_ENABLED
 void lcd_status_line_init(void)
 {
     system_state_t *state = malloc(sizeof(system_state_t));
@@ -636,24 +645,28 @@ void lcd_status_line(void)
     // Display the status line on the LCD
     memcpy(lcd_buffer + 3 * LCD_COLS, status_line_buffer[status_line_buffer_index], LCD_COLS);
 }
+#endif
 
-void lcd_temperaure_screen(bool bottom_statistics)
+void lcd_temperaure_screen(lcd_bottom_stat_t bottom_statistics)
 {
     // Display temperature data on the LCD
     lcd_clear_buffer();
-
-    char bgBuffer[] = "T1:     C  T4:     C";
-    lcd_set_cursor(0, 0);
-    lcd_copy_to_lcd_buffer(bgBuffer, strlen(bgBuffer), 0, 0);
-    bgBuffer[1] = '2';
-    bgBuffer[12] = '5';
-    lcd_set_cursor(0, 1);
-    lcd_copy_to_lcd_buffer(bgBuffer, strlen(bgBuffer), 0, 1);
-    bgBuffer[1] = '3';
-    bgBuffer[12] = '6';
-    lcd_set_cursor(0, 2);
-    lcd_copy_to_lcd_buffer(bgBuffer, strlen(bgBuffer), 0, 2);
-    if (bottom_statistics)
+#if (SENSOR_COUNT == 6)
+    const char sensor_buffer[SENSOR_COUNT] = {'0', '5', '3', '6', '4', '7'};
+#else //if (SENSOR_COUNT == 8)
+    const char sensor_buffer[SENSOR_COUNT] = {'0', '4', '1', '5', '2', '6', '3', '7'};
+#endif
+    uint8_t sensor_p = 0;
+    char bgBuffer[] = "TN:     C  TM:     C";
+    // const int8_t sensor_count_per_column = SENSOR_COUNT / 2;
+    for (uint8_t i = 0; i < SENSOR_COUNT_PER_COLUMN; i++)
+    {
+        bgBuffer[1] = sensor_buffer[sensor_p++];
+        bgBuffer[12] = sensor_buffer[sensor_p++];
+        lcd_set_cursor(0, i);
+        lcd_copy_to_lcd_buffer(bgBuffer, strlen(bgBuffer), 0, i);
+    }
+    if (bottom_statistics == LCD_BOTTOM_STAT_AVG)
     {
         static const char avgBuffer[] = "     C<     C<     C";
         lcd_set_cursor(0, 3);
@@ -665,27 +678,41 @@ void lcd_temperaure_screen(bool bottom_statistics)
     float max_temp = -20.0;
     float avg_temp = 0.0;
 
-    for (int i = 0; i < 6; i++)
+    sensor_p = 0;
+    for (uint8_t i = 0; i < SENSOR_MAX_COUNT; i++)
     {
-        float temp = ntc_adc_raw_to_temperature(ntc_get_channel_data(i));
-        if (bottom_statistics && temp < min_temp)
+        if ((LCD_SENSOR_DISPLAY_MASK & (1 << i)) == 0)
         {
-            min_temp = temp;
+            continue; // Skip if the sensor is not displayed
         }
-        if (bottom_statistics && temp > max_temp)
+        if (system_state.sensor_mask & (1 << i))
         {
-            max_temp = temp;
+            float temp = ntc_adc_raw_to_temperature(ntc_get_channel_data(i));
+            if (bottom_statistics != LCD_BOTTOM_STAT_NONE && temp < min_temp)
+            {
+                min_temp = temp;
+            }
+            if (bottom_statistics != LCD_BOTTOM_STAT_NONE && temp > max_temp)
+            {
+                max_temp = temp;
+            }
+            if (bottom_statistics != LCD_BOTTOM_STAT_NONE)
+            {
+                avg_temp += temp;
+            }
+            lcd_set_cursor(sensor_p < SENSOR_COUNT_PER_COLUMN ? 3 : 14, sensor_p % SENSOR_COUNT_PER_COLUMN);
+            lcd_format_temperature(temp, buffer, sizeof(buffer));
+            lcd_write_text(buffer);
         }
-        if (bottom_statistics)
+        else
         {
-            avg_temp += temp;
+            lcd_set_cursor(sensor_p < SENSOR_COUNT_PER_COLUMN ? 3 : 14, sensor_p % SENSOR_COUNT_PER_COLUMN);
+            lcd_write_text(" -N/A-");
         }
-        lcd_set_cursor(i < 3 ? 3 : 14, i % 3);
-        lcd_format_temperature(temp, buffer, sizeof(buffer));
-        lcd_write_text(buffer);
+        sensor_p++;
     }
 
-    if (!bottom_statistics)
+    if (bottom_statistics != LCD_BOTTOM_STAT_AVG)
     {
         return; // No statistics to display
     }
