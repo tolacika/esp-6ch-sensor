@@ -1,0 +1,20 @@
+@reference "../index.css"
+
+svg {
+  fill: darkblue;
+}
+
+.nav-item {
+  @apply text-white hover:text-blue-300;
+  @apply transition-colors duration-200 ease-in-out;
+}
+
+.nav-item svg {
+  @apply h-6 w-6 mr-2 inline-block;
+  @apply transition-colors duration-200 ease-in-out;
+  @apply fill-white;
+}
+
+.nav-item:hover svg {
+  @apply fill-blue-300;
+}
