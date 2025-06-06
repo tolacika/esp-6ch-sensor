@@ -11,6 +11,39 @@
 
 static const char *TAG = "http_server";
 
+static esp_err_t config_http_handler(httpd_req_t *req);
+static esp_err_t settings_http_post_handler(httpd_req_t *req);
+static esp_err_t http_get_handler(httpd_req_t *req);
+static esp_err_t websocket_http_handler(httpd_req_t *req);
+
+static httpd_handle_t server = NULL;
+
+static httpd_uri_t config_uri = {
+    .uri = "/config*",
+    .method = HTTP_ANY,
+    .handler = config_http_handler,
+    .user_ctx = NULL
+};
+static httpd_uri_t settings_uri = {
+    .uri = "/settings*",
+    .method = HTTP_POST,
+    .handler = settings_http_post_handler,
+    .user_ctx = NULL
+};
+static httpd_uri_t root_uri = {
+    .uri = "/*",
+    .method = HTTP_GET,
+    .handler = http_get_handler,
+    .user_ctx = NULL
+};
+static httpd_uri_t websocket_uri = {
+    .uri = "/ws",
+    .method = HTTP_GET,
+    .handler = websocket_http_handler,
+    .user_ctx = NULL,
+    .is_websocket = true
+};
+
 static bool match_uri(const char *uri, const char *match)
 {
     // Check if the URI starts with the match string
@@ -251,6 +284,58 @@ static esp_err_t http_get_handler(httpd_req_t *req)
     return send_dynamic_file(req);
 }
 
+static esp_err_t send_sync_response(httpd_req_t *req, const char *message) {
+    httpd_ws_frame_t ws_pkt;
+    memset(&ws_pkt, 0, sizeof(httpd_ws_frame_t));
+
+    ws_pkt.payload = (uint8_t *)message;
+    ws_pkt.len = strlen(message);
+    ws_pkt.type = HTTPD_WS_TYPE_TEXT;
+
+    return httpd_ws_send_frame(req, &ws_pkt);
+}
+
+static esp_err_t websocket_http_handler(httpd_req_t *req)
+{
+    ESP_LOGI(TAG, "WebSocket Handler Prio: %d, Core: %d", uxTaskPriorityGet(NULL), xPortGetCoreID());
+    dump_request(req);
+
+    if (req->method == HTTP_GET) {
+        ESP_LOGI(TAG, "Handshake done, the new connection was opened");
+        return ESP_OK;
+    }
+
+    // Buffer to store incoming WebSocket message
+    char buffer[1024];
+    int buffer_len = sizeof(buffer);
+
+    // Read incoming WebSocket message
+    httpd_ws_frame_t ws_frame;
+    memset(&ws_frame, 0, sizeof(httpd_ws_frame_t));
+    ws_frame.type = HTTPD_WS_TYPE_TEXT;
+    ws_frame.payload = (uint8_t *)buffer;
+    ws_frame.len = buffer_len;
+
+    esp_err_t ret = httpd_ws_recv_frame(req, &ws_frame, buffer_len);
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "Error receiving WebSocket message: %s", esp_err_to_name(ret));
+        return ret;
+    }
+
+    // Process the received message
+    ESP_LOGI(TAG, "Received message: %s", buffer);
+
+    // Send a synchronous response
+    const char *response = "Message received";
+    ret = send_sync_response(req, response);
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "Error sending WebSocket response: %s", esp_err_to_name(ret));
+        return ret;
+    }
+
+    return ESP_OK;
+}
+
 void start_http_server(void)
 {
     ESP_LOGI(TAG, "Prio: %d, Core: %d", uxTaskPriorityGet(NULL), xPortGetCoreID());
@@ -262,26 +347,11 @@ void start_http_server(void)
     config.uri_match_fn = httpd_uri_match_wildcard;
 
     ESP_LOGI(TAG, "Starting HTTP server...");
-    httpd_handle_t server = NULL;
     if (httpd_start(&server, &config) == ESP_OK)
     {
-        httpd_uri_t config_uri = {
-            .uri = "/config*",
-            .method = HTTP_ANY,
-            .handler = config_http_handler,
-            .user_ctx = NULL};
-        httpd_register_uri_handler(server, &config_uri);
-        httpd_uri_t settings_uri = {
-            .uri = "/settings*",
-            .method = HTTP_POST,
-            .handler = settings_http_post_handler,
-            .user_ctx = NULL};
+        //httpd_register_uri_handler(server, &websocket_uri);
         httpd_register_uri_handler(server, &settings_uri);
-        httpd_uri_t root_uri = {
-            .uri = "/*",
-            .method = HTTP_GET,
-            .handler = http_get_handler,
-            .user_ctx = NULL};
+        httpd_register_uri_handler(server, &config_uri);
         httpd_register_uri_handler(server, &root_uri);
         ESP_LOGI(TAG, "HTTP server started successfully.");
     }

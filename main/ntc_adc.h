@@ -10,7 +10,7 @@
 #include "state_manager.h"
 
 // Constants for NTC thermistor calculations
-#define R_FIXED 10000.0            // 10kΩ fixed resistor
+#define R_FIXED 1000.0             // 1kΩ fixed resistor
 #define V_SUPPLY 3300.0            // Supply voltage in mV
 #define NTC_BETA 3950.0            // Beta value for NTC thermistor
 #define NTC_R25 100000.0           // Resistance at 25°C in ohms
